@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Duel Master Pro - Numbers & Words</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap');
+        
+        :root {
+            --transition-speed: 0.4s;
+        }
+
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            transition: background var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+            overscroll-behavior: none;
+        }
+        
+        /* Arena Themes */
+        .theme-classic { --bg: #0f172a; --bg-grad: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); --accent: #6366f1; --accent-hover: #4f46e5; --text: #f8fafc; --glass-bg: rgba(255, 255, 255, 0.95); }
+        .theme-bubblegum { --bg: #831843; --bg-grad: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); --accent: #f472b6; --accent-hover: #db2777; --text: #831843; --glass-bg: rgba(255, 255, 255, 0.92); }
+        .theme-cyberpunk { --bg: #000000; --bg-grad: linear-gradient(135deg, #2d0b3d 0%, #000000 100%); --accent: #f0abfc; --accent-hover: #e879f9; --text: #fdf4ff; --glass-bg: rgba(15, 23, 42, 0.9); }
+        .theme-forest { --bg: #022c22; --bg-grad: linear-gradient(135deg, #064e3b 0%, #022c22 100%); --accent: #10b981; --accent-hover: #059669; --text: #ecfdf5; --glass-bg: rgba(255, 255, 255, 0.95); }
+        .theme-ocean { --bg: #082f49; --bg-grad: linear-gradient(135deg, #0c4a6e 0%, #082f49 100%); --accent: #0ea5e9; --accent-hover: #0284c7; --text: #f0f9ff; --glass-bg: rgba(255, 255, 255, 0.95); }
+
+        .gradient-bg { background: var(--bg-grad); min-height: 100vh; color: var(--text); }
+        
+        .glass { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            color: #1e293b; 
+        }
+
+        .active-turn { 
+            border-color: var(--accent) !important; 
+            transform: scale(1.03); 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary { 
+            background-color: var(--accent); 
+            color: white; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary:hover:not(:disabled) { 
+            filter: brightness(110%);
+            transform: translateY(-2px); 
+        }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
+        
+        .digit-correct { background-color: #22c55e; color: white; border-color: #16a34a; box-shadow: 0 4px 0 #16a34a; }
+        .digit-present { background-color: #eab308; color: white; border-color: #ca8a04; box-shadow: 0 4px 0 #ca8a04; }
+        .digit-absent { background-color: #64748b; color: white; border-color: #475569; box-shadow: 0 4px 0 #334155; }
+        
+        .digit-box {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: clamp(1.8rem, 8vw, 2.5rem);
+            height: clamp(1.8rem, 8vw, 2.5rem);
+            font-size: clamp(0.9rem, 4vw, 1.25rem);
+            font-weight: 900;
+            border-radius: 0.6rem;
+            border-width: 2px;
+            margin-bottom: 4px;
+        }
+
+        .avatar-circle {
+            width: 2.75rem; height: 2.75rem;
+            border-radius: 999px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; border: 2.5px solid #e2e8f0;
+            flex-shrink: 0;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .preview-tile {
+            background: var(--bg-grad);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        
+        .timer-bar { transition: width 0.1s linear; }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Notification Styling */
+        #notification-box {
+            position: fixed;
+            top: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(-200%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 9999;
+        }
+        #notification-box.show { transform: translateX(-50%) translateY(0); }
+
+        .screen-transition {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="theme-classic gradient-bg flex items-center justify-center p-2 sm:p-4 selection:bg-indigo-100">
+
+    <!-- Notification Overlay -->
+    <div id="notification-box" class="glass px-6 py-4 rounded-2xl shadow-2xl border border-slate-200 flex items-center gap-4 min-w-[280px]">
+        <div id="notification-icon" class="w-10 h-10 rounded-full flex items-center justify-center text-xl bg-slate-100">⚠️</div>
+        <span id="notification-text" class="font-bold text-slate-700"></span>
+    </div>
+
+    <!-- Currency Display -->
+    <div class="fixed top-4 right-4 glass px-5 py-2.5 rounded-full shadow-xl z-50 flex items-center gap-3 border border-slate-200 hover:scale-105 transition-transform cursor-default">
+        <span class="text-xl">🪙</span>
+        <span id="player-credits" class="font-black text-slate-800 text-lg">0</span>
+    </div>
+
+    <div id="app" class="glass w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[92vh] sm:max-h-[95vh]">
+        <!-- Header -->
+        <div class="p-5 sm:p-6 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-500/20" id="header-icon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black text-white leading-none uppercase tracking-tighter">DuelMaster</h1>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Multiplayer Mastermind</p>
+                </div>
+            </div>
+            <div id="connection-status" class="flex items-center gap-2 text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest bg-slate-800/50 px-3 py-1.5 rounded-full">
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span> 
+                <span id="status-text">Connecting</span>
+            </div>
+        </div>
+
+        <div class="overflow-y-auto flex-1 custom-scroll">
+            <!-- Start Screen -->
+            <div id="screen-start" class="p-6 sm:p-10 space-y-8 screen-transition">
+                <div class="text-center space-y-3">
+                    <h2 class="text-3xl sm:text-4xl font-black text-slate-800 uppercase tracking-tight text-balance leading-tight">Crack the Secret</h2>
+                    <p class="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto">Set your secret, challenge your rivals, and dominate the leaderboard.</p>
+                    <p class="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto">
+                        Made by 
+                        <a href="mailto:dsouzacraigmichael@gmail.com" class="underline hover:text-slate-700">
+                            dsouzacraigmichael@gmail.com
+                        </a>
+                        </p>
+                    </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                    <div class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-indigo-400 hover:shadow-xl transition-all group">
+                        <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                            <span class="text-2xl">🏠</span>
+                        </div>
+                        <h3 class="font-black text-xl mb-4 text-slate-800 uppercase tracking-tight">Host Arena</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="host-name" placeholder="Fighter Name" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-400 border border-slate-100 font-bold text-slate-700">
+                            <button onclick="hostGame()" class="w-full btn-primary font-black py-4 rounded-2xl shadow-lg uppercase tracking-widest text-sm">Create Room</button>
+                        </div>
+                    </div>
+
+                    <div class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-emerald-400 hover:shadow-xl transition-all group">
+                        <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                            <span class="text-2xl">🎮</span>
+                        </div>
+                        <h3 class="font-black text-xl mb-4 text-slate-800 uppercase tracking-tight">Join Arena</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="join-name" placeholder="Fighter Name" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-400 border border-slate-100 font-bold text-slate-700 mb-1">
+                            <input type="text" id="join-id" placeholder="Room ID" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-400 border border-slate-100 font-bold text-slate-700">
+                            <button onclick="joinGame()" class="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl hover:bg-emerald-700 shadow-lg active:scale-95 uppercase tracking-widest text-sm">Join Match</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-6">
+                    <button onclick="showShop()" class="w-full p-5 bg-slate-100 rounded-3xl border-2 border-dashed border-slate-300 hover:bg-slate-200 transition-all flex items-center justify-center gap-4 font-black text-slate-600 uppercase tracking-widest text-xs">
+                        <span class="text-xl">🛍️</span> Marketplace & Gear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Shop View -->
+            <div id="screen-shop" class="hidden p-6 sm:p-8 space-y-6 screen-transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-800 uppercase tracking-tighter leading-none">Armory</h2>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Customize your duel experience</p>
+                    </div>
+                    <button onclick="hideShop()" class="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition-colors">
+                        <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                
+                <div class="flex gap-2 p-1.5 bg-slate-100 rounded-[1.25rem]">
+                    <button onclick="renderShop('arenas')" id="tab-arenas" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest">Arenas</button>
+                    <button onclick="renderShop('avatars')" id="tab-avatars" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest">Avatars</button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5" id="shop-items"></div>
+            </div>
+
+            <!-- Lobby Screen -->
+            <div id="screen-lobby" class="hidden p-6 sm:p-8 space-y-8 screen-transition">
+                <div class="flex flex-col items-center gap-5 bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100 relative overflow-hidden group">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500/20 group-hover:bg-indigo-500/40 transition-colors"></div>
+                    <p class="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase text-center">Encrypted Room Key</p>
+                    <div class="flex gap-3 items-center">
+                        <code id="display-id" class="text-2xl sm:text-3xl font-mono font-black text-slate-800 tracking-widest">------</code>
+                        <button onclick="copyRoomId(event)" class="p-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all shadow-sm active:scale-90" title="Copy Key">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <div class="flex justify-between items-center px-2">
+                        <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs">Waiting Area</h3>
+                        <div class="flex items-center gap-2">
+                            <span id="player-count" class="text-indigo-600 font-black text-lg">1/10</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duelists</span>
+                        </div>
+                    </div>
+                    <div id="lobby-players" class="space-y-3 max-h-64 overflow-y-auto custom-scroll pr-2"></div>
+                </div>
+
+                <div id="host-controls" class="hidden border-t border-slate-100 pt-8 space-y-6">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="col-span-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Environmental Theme</label>
+                            <select id="config-arena" onchange="updateArenaPreview()" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Logic</label>
+                            <select id="config-mode" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
+                                <option value="numbers">Numbers</option>
+                                <option value="words">Real Words</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Length</label>
+                            <select id="config-length" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
+                                <option value="3">3</option>
+                                <option value="4" selected>4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Capacity</label>
+                            <select id="config-max-players" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
+                                <option value="2">2 Players</option>
+                                <option value="3">3 Players</option>
+                                <option value="5">5 Players</option>
+                                <option value="10" selected>10 Players</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Turn Clock</label>
+                            <select id="config-timer" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
+                                <option value="0">Off</option>
+                                <option value="30">30 Seconds</option>
+                                <option value="60">60 Seconds</option>
+                                <option value="90">90 Seconds</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="requestSecrets()" class="w-full btn-primary font-black py-5 rounded-[1.5rem] shadow-xl transition-all uppercase tracking-[0.2em] text-sm">Lock Room & Start</button>
+                </div>
+                <p id="guest-waiting" class="hidden text-center text-slate-400 font-bold text-sm py-4 uppercase tracking-widest animate-pulse">Waiting for Master to Initiate Duel...</p>
+            </div>
+
+            <!-- Preparation Screen -->
+            <div id="screen-setup" class="hidden p-8 sm:p-12 space-y-8 text-center screen-transition">
+                <div class="space-y-3">
+                    <h2 class="text-3xl sm:text-4xl font-black text-slate-800 uppercase tracking-tight">Lock Secret</h2>
+                    <p class="text-slate-500 font-medium">Opponents must guess this exact <span id="setup-info-len" class="text-indigo-600 font-black">4</span>-<span id="setup-info-mode" class="text-indigo-600 font-black">char</span> code.</p>
+                </div>
+                
+                <div class="max-w-xs mx-auto space-y-6">
+                    <input type="text" id="input-secret" placeholder="????" class="w-full p-6 text-4xl font-black text-center tracking-[0.4em] bg-slate-50 border-4 border-slate-100 rounded-3xl focus:border-indigo-400 outline-none uppercase shadow-inner transition-all">
+                    <button id="btn-ready" onclick="submitSecret()" class="w-full btn-primary font-black py-5 rounded-3xl shadow-xl uppercase tracking-widest text-sm">Seal Code</button>
+                    <div id="ready-status" class="hidden flex flex-col items-center justify-center gap-4 text-indigo-600 font-black uppercase tracking-widest text-xs">
+                        <div class="flex gap-2">
+                            <div class="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                            <div class="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                        </div>
+                        <span>Waiting for Rivals</span>
+                        <div id="ready-players-list" class="text-[10px] text-slate-400 mt-2 font-bold normal-case"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Screen -->
+            <div id="screen-game" class="hidden relative h-full flex flex-col screen-transition">
+                <div id="timer-container" class="hidden absolute top-0 left-0 w-full h-1.5 bg-slate-100 overflow-hidden">
+                    <div id="timer-bar" class="timer-bar h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                </div>
+
+                <!-- NEW: Horizontal Player List (Always visible at top) -->
+                <div class="w-full bg-slate-50/50 border-b border-slate-200 overflow-x-auto custom-scroll shrink-0 py-3 px-4">
+                    <div id="game-players" class="flex flex-row gap-3 min-w-max px-2"></div>
+                </div>
+
+                <!-- Simplified Info Strip -->
+                <div class="p-3 bg-white/40 border-b border-slate-200 flex justify-between items-center px-6 sm:px-10 shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div id="target-avatar" class="avatar-circle shadow-sm border-white w-9 h-9 text-base">?</div>
+                        <div class="leading-tight">
+                            <span class="text-[8px] font-black text-slate-400 uppercase block tracking-widest">Current Target</span>
+                            <span id="game-target-name" class="text-xs font-black text-slate-800 truncate max-w-[80px] block">---</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span id="timer-text" class="hidden block text-[10px] font-black text-red-500 uppercase tracking-widest mb-0.5">00:00</span>
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-black text-slate-400 uppercase block tracking-widest">Active Duelist</span>
+                            <span id="current-turn-name" class="text-xs font-black text-indigo-600 truncate max-w-[80px] block uppercase">---</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-6 flex flex-col gap-6 flex-1 min-h-0">
+                    <!-- Guess Input -->
+                    <div class="space-y-4 shrink-0">
+                        <div class="flex gap-3">
+                            <input type="text" id="input-guess" placeholder="Guess Code" class="flex-1 p-4 text-2xl font-black tracking-[0.3em] rounded-2xl border-2 border-slate-200 focus:border-indigo-500 outline-none uppercase min-w-0 shadow-sm transition-all placeholder:tracking-normal placeholder:font-bold">
+                            <button id="btn-submit-guess" onclick="submitGuess()" class="px-8 btn-primary font-black rounded-2xl transition-all disabled:opacity-50 text-xs tracking-widest uppercase shadow-indigo-500/20 shadow-lg">Fire</button>
+                        </div>
+                    </div>
+
+                    <!-- History Log (Takes up remaining space) -->
+                    <div class="flex-1 min-h-0 flex flex-col">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Arena Logs</h4>
+                        </div>
+                        <div id="history-log" class="flex-1 overflow-y-auto space-y-4 pr-3 custom-scroll"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Screen -->
+            <div id="screen-result" class="hidden p-8 sm:p-14 text-center space-y-8 screen-transition">
+                <div class="relative inline-block">
+                    <div class="w-24 h-24 sm:w-32 sm:h-32 bg-yellow-400 rounded-full flex items-center justify-center mx-auto text-4xl sm:text-6xl shadow-2xl border-4 border-white">🏆</div>
+                    <div class="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase shadow-lg tracking-widest">+100 RS</div>
+                </div>
+                <div class="space-y-3">
+                    <h2 class="text-3xl sm:text-5xl font-black text-slate-800 uppercase tracking-tighter leading-none text-balance">Arena Conquered</h2>
+                    <p id="winner-text" class="text-xl sm:text-2xl text-indigo-600 font-black tracking-tight"></p>
+                </div>
+                <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secret Reveal</p>
+                    <div id="reveal-list" class="flex flex-wrap justify-center gap-4"></div>
+                </div>
+                <button onclick="location.reload()" class="w-full bg-slate-900 text-white font-black py-5 rounded-3xl hover:bg-black transition-all uppercase tracking-widest text-sm shadow-xl">Back to Base</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Application Logic ---
+        
+        function notify(message, type = 'info') {
+            const box = document.getElementById('notification-box');
+            const text = document.getElementById('notification-text');
+            const icon = document.getElementById('notification-icon');
+            
+            text.innerText = message;
+            
+            if (type === 'error') {
+                icon.innerText = '❌';
+                icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-red-100";
+            } else if (type === 'success') {
+                icon.innerText = '✅';
+                icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-green-100";
+            } else {
+                icon.innerText = '⚠️';
+                icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-slate-100";
+            }
+            
+            box.classList.add('show');
+            setTimeout(() => { box.classList.remove('show'); }, 3500);
+        }
+
+        async function isRealWord(word) {
+            if (word.length < 3) return false;
+            try {
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+                if (response.status === 404) return false;
+                return response.ok;
+            } catch (error) {
+                console.error("Dictionary API Error:", error);
+                return true; 
+            }
+        }
+
+        // --- Skins Data ---
+        const ARENA_SKINS = [
+            { id: 'classic', name: 'Classic Dark', price: 0, class: 'theme-classic' },
+            { id: 'bubblegum', name: 'Pink Bubblegum', price: 75, class: 'theme-bubblegum' },
+            { id: 'cyberpunk', name: 'Cyberpunk', price: 50, class: 'theme-cyberpunk' },
+            { id: 'forest', name: 'Forest', price: 100, class: 'theme-forest' },
+            { id: 'ocean', name: 'Ocean', price: 150, class: 'theme-ocean' }
+        ];
+
+        const AVATAR_SKINS = [
+            { id: 'default', name: 'Novice', price: 0, icon: '👤' },
+            { id: 'pink_pop', name: 'Bubbly Pop', price: 75, icon: '🍭' },
+            { id: 'neon', name: 'Neon Knight', price: 50, icon: '🛡️' },
+            { id: 'ninja', name: 'Shadow Ninja', price: 100, icon: '🥷' },
+            { id: 'king', name: 'Golden King', price: 500, icon: '👑' },
+            { id: 'alien', name: 'Cosmic Alien', price: 200, icon: '👽' }
+        ];
+
+        let playerProfile = {
+            credits: parseInt(localStorage.getItem('duel_credits')) || 100,
+            unlockedArenas: JSON.parse(localStorage.getItem('duel_arenas')) || ['classic'],
+            unlockedAvatars: JSON.parse(localStorage.getItem('duel_avatars')) || ['default'],
+            activeArena: localStorage.getItem('duel_active_arena') || 'classic',
+            activeAvatar: localStorage.getItem('duel_active_avatar') || 'default'
+        };
+
+        function saveProfile() {
+            localStorage.setItem('duel_credits', playerProfile.credits);
+            localStorage.setItem('duel_arenas', JSON.stringify(playerProfile.unlockedArenas));
+            localStorage.setItem('duel_avatars', JSON.stringify(playerProfile.unlockedAvatars));
+            localStorage.setItem('duel_active_arena', playerProfile.activeArena);
+            localStorage.setItem('duel_active_avatar', playerProfile.activeAvatar);
+            
+            const creditsEl = document.getElementById('player-credits');
+            if (creditsEl) creditsEl.innerText = playerProfile.credits;
+            
+            if (peer && myId) {
+                if (isHost) {
+                    const me = gameState.players.find(p => p.id === myId);
+                    if (me) { me.avatarId = playerProfile.activeAvatar; broadcastState(); }
+                } else if (conn && conn.open) {
+                    conn.send({ type: 'UPDATE_PROFILE', avatarId: playerProfile.activeAvatar });
+                }
+            }
+        }
+
+        function equipSkin(type, id) {
+            if (type === 'arenas') playerProfile.activeArena = id;
+            else playerProfile.activeAvatar = id;
+            if (type === 'arenas') applyArenaTheme(id);
+            saveProfile();
+            renderShop(type);
+        }
+
+        function buySkin(type, id) {
+            const list = type === 'arenas' ? ARENA_SKINS : AVATAR_SKINS;
+            const item = list.find(s => s.id === id);
+            if (playerProfile.credits >= item.price) {
+                playerProfile.credits -= item.price;
+                if (type === 'arenas') playerProfile.unlockedArenas.push(id);
+                else playerProfile.unlockedAvatars.push(id);
+                equipSkin(type, id);
+                notify(`Equipped: ${item.name}`, 'success');
+            } else {
+                notify("Insufficient Credits!", 'error');
+            }
+        }
+
+        function renderShop(type = 'arenas') {
+            const container = document.getElementById('shop-items');
+            if (!container) return;
+            const list = type === 'arenas' ? ARENA_SKINS : AVATAR_SKINS;
+            const unlocked = type === 'arenas' ? playerProfile.unlockedArenas : playerProfile.unlockedAvatars;
+            const active = type === 'arenas' ? playerProfile.activeArena : playerProfile.activeAvatar;
+
+            document.getElementById('tab-arenas').className = `flex-1 py-3 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest ${type === 'arenas' ? 'bg-white shadow-sm' : 'text-slate-400'}`;
+            document.getElementById('tab-avatars').className = `flex-1 py-3 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest ${type === 'avatars' ? 'bg-white shadow-sm' : 'text-slate-400'}`;
+
+            container.innerHTML = list.map(item => {
+                const isUnlocked = unlocked.includes(item.id);
+                const isActive = active === item.id;
+                const isArena = type === 'arenas';
+                
+                return `
+                <div class="p-5 rounded-3xl border-2 transition-all ${isActive ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-100 bg-white hover:border-slate-200'}">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-black text-[10px] uppercase tracking-widest text-slate-500">${item.name}</span>
+                        ${isUnlocked ? '<span class="text-[9px] text-green-600 font-black tracking-widest">OWNED</span>' : `<span class="text-xs font-black text-yellow-600">🪙 ${item.price}</span>`}
+                    </div>
+                    <div class="h-20 flex items-center justify-center rounded-2xl mb-4 overflow-hidden border border-slate-100 ${!isArena ? 'bg-slate-50' : ''}">
+                        ${!isArena ? `<span class="text-4xl filter drop-shadow-md">${item.icon}</span>` : `<div class="w-full h-full ${item.class} preview-tile"></div>`}
+                    </div>
+                    <button onclick="${isUnlocked ? `equipSkin('${type}', '${item.id}')` : `buySkin('${type}', '${item.id}')`}" 
+                            ${isActive ? 'disabled' : ''} 
+                            class="w-full py-3 text-[10px] font-black rounded-xl transition-all ${isActive ? 'bg-slate-200 text-slate-500' : 'btn-primary'} uppercase tracking-[0.2em]">
+                        ${isActive ? 'Active' : (isUnlocked ? 'Equip' : 'Purchase')}
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        function applyArenaTheme(arenaId) {
+            const theme = ARENA_SKINS.find(s => s.id === arenaId) || ARENA_SKINS[0];
+            document.body.className = `gradient-bg flex items-center justify-center p-2 sm:p-4 ${theme.class}`;
+        }
+
+        function updateArenaPreview() {
+            if (isHost) {
+                const configArena = document.getElementById('config-arena');
+                if (configArena) {
+                    gameState.config.arenaSkinId = configArena.value;
+                    applyArenaTheme(gameState.config.arenaSkinId);
+                    broadcastState();
+                }
+            }
+        }
+
+        // --- P2P Logic ---
+        let peer = null;
+        let connections = [];
+        let conn = null; 
+        let myId = null;
+        let myName = "";
+        let isHost = false;
+        let timerInterval = null;
+        
+        let gameState = {
+            players: [], history: [],
+            currentTurnIndex: 0, turnStartedAt: 0,
+            config: { length: 4, mode: 'numbers', timerSeconds: 0, arenaSkinId: 'classic', maxPlayers: 10 },
+            status: 'lobby', winner: null
+        };
+
+        function updatePeerStatus(t, m) {
+            const dot = document.getElementById('status-dot');
+            const txt = document.getElementById('status-text');
+            if (dot) {
+                dot.className = `w-2 h-2 rounded-full ${t === 'ready' ? 'bg-green-500' : 'bg-red-500'}`;
+                if (t === 'ready') dot.classList.remove('animate-pulse');
+            }
+            if (txt) txt.innerText = m;
+        }
+
+        function initPeer() {
+            peer = new Peer();
+            peer.on('open', (id) => {
+                myId = id;
+                const displayId = document.getElementById('display-id');
+                if (displayId) displayId.innerText = id;
+                updatePeerStatus('ready', 'Online');
+                saveProfile();
+            });
+            peer.on('connection', (c) => {
+                if (!isHost) return;
+                c.on('open', () => {
+                    if (gameState.players.length >= gameState.config.maxPlayers || gameState.status !== 'lobby') {
+                        c.send({ type: 'ROOM_LOCKED' });
+                        setTimeout(() => c.close(), 1000);
+                        return;
+                    }
+                    connections.push(c);
+                    c.on('data', (data) => handleIncomingData(data, c));
+                    c.on('close', () => {
+                        connections = connections.filter(conn => conn !== c);
+                        gameState.players = gameState.players.filter(p => p.id !== c.peer);
+                        broadcastState();
+                    });
+                });
+            });
+            peer.on('error', (err) => {
+                console.error(err);
+                if (err.type === 'peer-unavailable') {
+                    notify("Target Room not found", "error");
+                }
+                updatePeerStatus('error', 'Network Error');
+            });
+        }
+
+        function hostGame() {
+            const nameEl = document.getElementById('host-name');
+            const name = nameEl ? nameEl.value.trim() : "";
+            if (!name) return notify("Commander Name Required", 'error');
+            isHost = true;
+            myName = name;
+            gameState.players = [{ id: myId, name: myName, isHost: true, isReady: false, avatarId: playerProfile.activeAvatar }];
+            gameState.config.arenaSkinId = playerProfile.activeArena;
+            
+            const arenaSel = document.getElementById('config-arena');
+            if (arenaSel) {
+                arenaSel.innerHTML = ARENA_SKINS.filter(s => playerProfile.unlockedArenas.includes(s.id))
+                                    .map(s => `<option value="${s.id}" ${s.id === playerProfile.activeArena ? 'selected' : ''}>${s.name}</option>`).join('');
+            }
+
+            showScreen('lobby');
+            const hostControls = document.getElementById('host-controls');
+            if (hostControls) hostControls.classList.remove('hidden');
+            renderLobby();
+        }
+
+        function joinGame() {
+            const nameEl = document.getElementById('join-name');
+            const idEl = document.getElementById('join-id');
+            const name = nameEl ? nameEl.value.trim() : "";
+            const targetId = idEl ? idEl.value.trim() : "";
+            if (!name || !targetId) return notify("Name & Room Code Required", 'error');
+            myName = name;
+            conn = peer.connect(targetId);
+            conn.on('open', () => {
+                conn.send({ type: 'JOIN_REQUEST', name: myName, id: myId, avatarId: playerProfile.activeAvatar });
+                showScreen('lobby');
+                const guestWait = document.getElementById('guest-waiting');
+                if (guestWait) guestWait.classList.remove('hidden');
+            });
+            conn.on('data', (data) => handleIncomingData(data, conn));
+            conn.on('close', () => {
+                notify("Disconnected from Host", "error");
+                location.reload();
+            });
+        }
+
+        function handleIncomingData(data, sender) {
+            switch(data.type) {
+                case 'JOIN_REQUEST':
+                    if (isHost && gameState.players.length < gameState.config.maxPlayers) {
+                        gameState.players.push({ id: data.id, name: data.name, isHost: false, isReady: false, avatarId: data.avatarId });
+                        broadcastState();
+                    }
+                    break;
+                case 'UPDATE_PROFILE':
+                    if (isHost) {
+                        const p = gameState.players.find(p => p.id === sender.peer);
+                        if (p) { p.avatarId = data.avatarId; broadcastState(); }
+                    }
+                    break;
+                case 'ROOM_LOCKED':
+                    notify("Arena is Full or In Progress!", 'error');
+                    setTimeout(() => location.reload(), 2500);
+                    break;
+                case 'WIN_REWARD':
+                    playerProfile.credits += data.amount;
+                    saveProfile();
+                    notify(`Victory! Received ${data.amount} Credits`, 'success');
+                    break;
+                case 'STATE_UPDATE':
+                    gameState = data.state;
+                    syncUI();
+                    break;
+                case 'SUBMIT_SECRET':
+                    if (isHost) {
+                        const p = gameState.players.find(p => p.id === data.playerId);
+                        if (p) {
+                            p.secret = data.secret.toUpperCase();
+                            p.isReady = true;
+                            if (gameState.players.every(p => p.isReady)) {
+                                gameState.status = 'playing';
+                                gameState.turnStartedAt = Date.now();
+                            }
+                            broadcastState();
+                        }
+                    }
+                    break;
+                case 'SUBMIT_GUESS':
+                    if (isHost) processGuess(data.guess, data.playerId);
+                    break;
+            }
+        }
+
+        function syncUI() {
+            applyArenaTheme(gameState.config.arenaSkinId);
+            const screenMap = { 'lobby': 'lobby', 'setup': 'setup', 'playing': 'game', 'finished': 'result' };
+            showScreen(screenMap[gameState.status]);
+
+            if (gameState.status === 'lobby') renderLobby();
+            else if (gameState.status === 'setup') renderSetup();
+            else if (gameState.status === 'playing') renderGame();
+            else if (gameState.status === 'finished') renderResult();
+        }
+
+        function renderLobby() {
+            const listEl = document.getElementById('lobby-players');
+            if (listEl) {
+                listEl.innerHTML = gameState.players.map(p => {
+                    const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
+                    return `
+                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm animate-pop">
+                        <div class="flex items-center gap-4">
+                            <div class="avatar-circle border-indigo-50">${av.icon}</div>
+                            <span class="font-black text-slate-700 text-sm truncate max-w-[150px] uppercase tracking-tight">${p.name} ${p.id === myId ? '<span class="text-indigo-500 font-bold ml-1 tracking-widest text-[9px]">(YOU)</span>' : ''}</span>
+                        </div>
+                        ${p.isHost ? '<span class="text-[8px] font-black bg-slate-900 text-white px-2.5 py-1 rounded-full uppercase tracking-widest">MASTER</span>' : ''}
+                    </div>`;
+                }).join('');
+            }
+            const countEl = document.getElementById('player-count');
+            if (countEl) countEl.innerText = `${gameState.players.length}/${gameState.config.maxPlayers}`;
+        }
+
+        function renderSetup() {
+            const inputSecret = document.getElementById('input-secret');
+            document.getElementById('setup-info-len').innerText = gameState.config.length;
+            document.getElementById('setup-info-mode').innerText = gameState.config.mode === 'numbers' ? 'digit' : 'word';
+
+            if (inputSecret) {
+                inputSecret.maxLength = gameState.config.length;
+                inputSecret.placeholder = "?".repeat(gameState.config.length);
+            }
+            const me = gameState.players.find(p => p.id === myId);
+            if (me?.isReady) {
+                document.getElementById('btn-ready').classList.add('hidden');
+                document.getElementById('ready-status').classList.remove('hidden');
+                if (inputSecret) inputSecret.disabled = true;
+                const listEl = document.getElementById('ready-players-list');
+                if (listEl) listEl.innerText = `Verified: ${gameState.players.filter(p=>p.isReady).map(p=>p.name).join(', ')}`;
+            }
+        }
+
+        function renderGame() {
+            const turnPlayer = gameState.players[gameState.currentTurnIndex];
+            if (!turnPlayer) return;
+
+            const isMyTurn = turnPlayer.id === myId;
+            const targetPlayer = gameState.players[(gameState.currentTurnIndex + 1) % gameState.players.length];
+            const targetAv = AVATAR_SKINS.find(a => a.id === targetPlayer.avatarId) || AVATAR_SKINS[0];
+
+            document.getElementById('current-turn-name').innerText = isMyTurn ? "YOUR MOVE" : turnPlayer.name.toUpperCase();
+            document.getElementById('game-target-name').innerText = targetPlayer.name.toUpperCase();
+            const targetAvEl = document.getElementById('target-avatar');
+            if (targetAvEl) targetAvEl.innerText = targetAv.icon;
+            
+            const gIn = document.getElementById('input-guess');
+            const gBtn = document.getElementById('btn-submit-guess');
+            if (gIn) {
+                gIn.disabled = !isMyTurn;
+                gIn.maxLength = gameState.config.length;
+                gIn.placeholder = isMyTurn ? "Code Required" : "Enemy Calculating...";
+            }
+            if (gBtn) gBtn.disabled = !isMyTurn;
+
+            // Render horizontal player bar
+            document.getElementById('game-players').innerHTML = gameState.players.map((p, idx) => {
+                const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
+                const isActive = idx === gameState.currentTurnIndex;
+                return `
+                <div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'}">
+                    <span class="text-xl">${av.icon}</span>
+                    <div class="leading-none">
+                        <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name}</p>
+                        <p class="text-[7px] text-slate-400 font-black uppercase tracking-widest mt-1">vs ${gameState.players[(idx+1)%gameState.players.length].name}</p>
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('history-log').innerHTML = gameState.history.map(h => {
+                const player = gameState.players.find(p => p.name === h.playerName);
+                const av = AVATAR_SKINS.find(a => a.id === player?.avatarId) || AVATAR_SKINS[0];
+                return `
+                <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">${av.icon}</span>
+                            <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">${h.playerName} ➔ ${h.targetName}</span>
+                        </div>
+                        ${h.isTimeout ? '<span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black uppercase">Clock Ran Out</span>' : ''}
+                    </div>
+                    <div class="flex gap-1.5 flex-wrap">
+                        ${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}
+                    </div>
+                </div>`;
+            }).reverse().join('');
+                
+            startTimerLoop();
+        }
+
+        function startTimerLoop() {
+            if (gameState.config.timerSeconds <= 0) return;
+            if (timerInterval) clearInterval(timerInterval);
+            
+            const timerCont = document.getElementById('timer-container');
+            const timerTxt = document.getElementById('timer-text');
+            if (timerCont) timerCont.classList.remove('hidden');
+            if (timerTxt) timerTxt.classList.remove('hidden');
+
+            timerInterval = setInterval(() => {
+                const diff = (Date.now() - gameState.turnStartedAt) / 1000;
+                const rem = Math.max(0, gameState.config.timerSeconds - diff);
+                const timerBar = document.getElementById('timer-bar');
+                const timerText = document.getElementById('timer-text');
+                
+                if (timerBar) timerBar.style.width = `${(rem / gameState.config.timerSeconds) * 100}%`;
+                if (timerText) {
+                    const m = Math.floor(rem / 60);
+                    const s = Math.ceil(rem % 60);
+                    timerText.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                    if (rem < 5) timerText.classList.add('animate-pulse');
+                    else timerText.classList.remove('animate-pulse');
+                }
+                
+                if (isHost && rem <= 0) processGuess("TIMEOUT", gameState.players[gameState.currentTurnIndex].id);
+            }, 100);
+        }
+
+        function processGuess(guess, playerId) {
+            if (!isHost) return;
+            const pIdx = gameState.players.findIndex(p => p.id === playerId);
+            if (pIdx === -1) return;
+            
+            const target = gameState.players[(pIdx + 1) % gameState.players.length];
+            const isTimeout = guess === "TIMEOUT";
+            
+            let flags = [];
+            let results = [];
+
+            if (isTimeout) {
+                results = Array(gameState.config.length).fill(0).map(() => ({ digit: 'X', type: 'absent' }));
+            } else {
+                let tArr = target.secret.split('');
+                let gArr = guess.split('');
+                flags = Array(gArr.length).fill(null);
+                for (let i = 0; i < gArr.length; i++) {
+                    if (gArr[i] === tArr[i]) { flags[i] = 'correct'; tArr[i] = null; }
+                }
+                for (let i = 0; i < gArr.length; i++) {
+                    if (flags[i]) continue;
+                    let found = tArr.indexOf(gArr[i]);
+                    if (found !== -1) { flags[i] = 'present'; tArr[found] = null; }
+                    else flags[i] = 'absent';
+                }
+                results = flags.map((f, i) => ({ digit: gArr[i], type: f }));
+            }
+
+            gameState.history.push({ playerName: gameState.players[pIdx].name, targetName: target.name, results, isTimeout });
+
+            if (!isTimeout && results.every(r => r.type === 'correct')) {
+                gameState.status = 'finished';
+                gameState.winner = gameState.players[pIdx].name;
+                const winnerId = gameState.players[pIdx].id;
+                if (winnerId === myId) {
+                    playerProfile.credits += 100;
+                    saveProfile();
+                    notify("Champion! +100 RS Earned", 'success');
+                } else {
+                    const winnerConn = connections.find(c => c.peer === winnerId);
+                    if (winnerConn) winnerConn.send({ type: 'WIN_REWARD', amount: 100 });
+                }
+            } else {
+                gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.players.length;
+                gameState.turnStartedAt = Date.now();
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            }
+            broadcastState();
+        }
+
+        function renderResult() {
+            document.getElementById('winner-text').innerText = gameState.winner.toUpperCase();
+            document.getElementById('reveal-list').innerHTML = gameState.players.map(p => {
+                const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
+                return `
+                <div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
+                    <span class="text-3xl">${av.icon}</span>
+                    <div class="text-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase truncate max-w-[90px] mb-1 tracking-widest">${p.name}</p>
+                        <p class="text-xl font-black text-slate-800 tracking-widest">${p.secret}</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function requestSecrets() {
+            if (!isHost || gameState.players.length < 2) return notify("Minimum 2 Duelists Required", 'error');
+            gameState.config.length = parseInt(document.getElementById('config-length').value);
+            gameState.config.mode = document.getElementById('config-mode').value;
+            gameState.config.timerSeconds = parseInt(document.getElementById('config-timer').value);
+            gameState.config.arenaSkinId = document.getElementById('config-arena').value;
+            gameState.config.maxPlayers = parseInt(document.getElementById('config-max-players').value);
+            gameState.status = 'setup';
+            broadcastState();
+        }
+
+        async function submitSecret() {
+            const inputSecret = document.getElementById('input-secret');
+            const val = inputSecret ? inputSecret.value.trim().toUpperCase() : "";
+            if (val.length !== gameState.config.length) {
+                return notify(`Exactly ${gameState.config.length} characters required`, 'error');
+            }
+            if (gameState.config.mode === 'words') {
+                const btn = document.getElementById('btn-ready');
+                btn.innerText = "VALIDATING...";
+                btn.disabled = true;
+                const validWord = await isRealWord(val);
+                if (!validWord) {
+                    notify("Unrecognized English Word!", 'error');
+                    btn.innerText = "Seal Code";
+                    btn.disabled = false;
+                    return;
+                }
+                btn.innerText = "Seal Code";
+                btn.disabled = false;
+            }
+            if (isHost) {
+                const me = gameState.players.find(p => p.id === myId);
+                if (me) {
+                    me.secret = val; me.isReady = true;
+                    if (gameState.players.every(p => p.isReady)) { gameState.status = 'playing'; gameState.turnStartedAt = Date.now(); }
+                    broadcastState();
+                }
+            } else {
+                conn.send({ type: 'SUBMIT_SECRET', secret: val, playerId: myId });
+                document.getElementById('btn-ready').classList.add('hidden');
+                document.getElementById('ready-status').classList.remove('hidden');
+            }
+        }
+
+        function submitGuess() {
+            const inputGuess = document.getElementById('input-guess');
+            const val = inputGuess ? inputGuess.value.trim().toUpperCase() : "";
+            if (val.length !== gameState.config.length) {
+                return notify(`Requirement: ${gameState.config.length} Characters`, 'error');
+            }
+            if (isHost) processGuess(val, myId);
+            else conn.send({ type: 'SUBMIT_GUESS', guess: val, playerId: myId });
+            if (inputGuess) inputGuess.value = "";
+        }
+
+        function broadcastState() { 
+            if (isHost) connections.forEach(c => { if(c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); 
+            syncUI(); 
+        }
+
+        function showScreen(id) { 
+            ['start', 'shop', 'lobby', 'setup', 'game', 'result'].forEach(s => {
+                const el = document.getElementById(`screen-${s}`);
+                if (el) el.classList.toggle('hidden', s !== id);
+            });
+        }
+
+        function showShop() { showScreen('shop'); renderShop('arenas'); }
+        function hideShop() { showScreen('start'); }
+        
+        function copyRoomId(e) { 
+            const id = document.getElementById('display-id').innerText;
+            if (id === "------") return;
+            const el = document.createElement('textarea'); el.value = id; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+            const btn = e.currentTarget; const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+            setTimeout(() => { btn.innerHTML = originalIcon; }, 2000);
+            notify("Key Securely Copied!");
+        }
+
+        window.onload = initPeer;
+    </script>
+</body>
+</html>
