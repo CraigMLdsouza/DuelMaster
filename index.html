@@ -159,8 +159,22 @@
                     <p class="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto">Set your secret, challenge your rivals, and dominate the leaderboard.</p>
                 </div>
 
+                <!-- Reconnect Card (Hidden by default) -->
+                <div id="reconnect-container" class="hidden animate-pop">
+                    <div class="p-6 sm:p-8 bg-indigo-50 border-2 border-indigo-200 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">⚡</div>
+                            <div class="text-left">
+                                <h4 class="font-black text-indigo-900 uppercase text-xs tracking-widest">Active Match Found</h4>
+                                <p class="text-[10px] text-indigo-600 font-bold">Room: <span id="last-room-id-text">---</span></p>
+                            </div>
+                        </div>
+                        <button onclick="rejoinLastRoom()" class="px-8 py-3 bg-indigo-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all">Quick Rejoin</button>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                    <div class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-indigo-400 hover:shadow-xl transition-all group">
+                    <div id="host-card" class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-indigo-400 hover:shadow-xl transition-all group">
                         <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                             <span class="text-2xl">🏠</span>
                         </div>
@@ -171,7 +185,7 @@
                         </div>
                     </div>
 
-                    <div class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-emerald-400 hover:shadow-xl transition-all group">
+                    <div id="join-card" class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-emerald-400 hover:shadow-xl transition-all group">
                         <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                             <span class="text-2xl">🎮</span>
                         </div>
@@ -204,8 +218,8 @@
                 </div>
                 
                 <div class="flex gap-2 p-1.5 bg-slate-100 rounded-[1.25rem]">
-                    <button onclick="renderShop('arenas')" id="tab-arenas" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest">Arenas</button>
-                    <button onclick="renderShop('avatars')" id="tab-avatars" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest">Avatars</button>
+                    <button onclick="renderShop('arenas')" id="tab-arenas" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest text-slate-400">Arenas</button>
+                    <button onclick="renderShop('avatars')" id="tab-avatars" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest text-slate-400">Avatars</button>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5" id="shop-items"></div>
@@ -364,7 +378,12 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secret Reveal</p>
                     <div id="reveal-list" class="flex flex-wrap justify-center gap-4"></div>
                 </div>
-                <button onclick="location.reload()" class="w-full bg-slate-900 text-white font-black py-5 rounded-3xl hover:bg-black transition-all uppercase tracking-widest text-sm shadow-xl">Back to Base</button>
+                
+                <div class="flex flex-col gap-3 w-full max-w-sm mx-auto">
+                    <button id="btn-rematch" onclick="initiateRematch()" class="hidden w-full bg-indigo-600 text-white font-black py-5 rounded-3xl hover:bg-indigo-700 transition-all uppercase tracking-widest text-sm shadow-xl shadow-indigo-500/20">New Round</button>
+                    <p id="rematch-waiting" class="hidden text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse py-4">Waiting for Master to reset arena...</p>
+                    <button onclick="location.reload()" class="w-full bg-slate-900 text-white font-black py-5 rounded-3xl hover:bg-black transition-all uppercase tracking-widest text-sm shadow-xl">Back to Base</button>
+                </div>
             </div>
         </div>
     </div>
@@ -425,7 +444,12 @@
         ];
 
         const storedCredits = localStorage.getItem('duel_credits');
+        const storedSession = localStorage.getItem('duel_session_id') || crypto.randomUUID();
+        const lastRoomId = localStorage.getItem('duel_last_room');
+        localStorage.setItem('duel_session_id', storedSession);
+
         let playerProfile = {
+            sessionId: storedSession,
             credits: storedCredits !== null ? parseInt(storedCredits) : 100,
             unlockedArenas: JSON.parse(localStorage.getItem('duel_arenas')) || ['classic'],
             unlockedAvatars: JSON.parse(localStorage.getItem('duel_avatars')) || ['default'],
@@ -535,8 +559,17 @@
         function handleIncomingData(data, sender) {
             switch(data.type) {
                 case 'JOIN_REQUEST':
-                    if (isHost && gameState.players.length < gameState.config.maxPlayers) {
-                        gameState.players.push({ id: data.id, name: data.name, isHost: false, isReady: false, avatarId: data.avatarId });
+                    if (isHost) {
+                        const existingP = gameState.players.find(p => p && p.sessionId === data.sessionId);
+                        if (existingP) {
+                            existingP.id = data.id;
+                            existingP.online = true;
+                            existingP.name = data.name;
+                            existingP.avatarId = data.avatarId;
+                            notify(`${data.name} reconnected!`, 'success');
+                        } else if (gameState.players.length < gameState.config.maxPlayers) {
+                            gameState.players.push({ id: data.id, sessionId: data.sessionId, name: data.name, isHost: false, isReady: false, avatarId: data.avatarId, online: true });
+                        }
                         broadcastState();
                     }
                     break;
@@ -547,13 +580,14 @@
                     }
                     break;
                 case 'ROOM_LOCKED':
-                    notify("Arena is Full or In Progress!", 'error');
+                    notify("Arena Locked or Full!", 'error');
+                    localStorage.removeItem('duel_last_room');
                     setTimeout(() => location.reload(), 2500);
                     break;
                 case 'WIN_REWARD':
                     playerProfile.credits += data.amount;
                     saveProfile();
-                    notify(`Victory! Received ${data.amount} Credits`, 'success');
+                    notify(`Victory! +${data.amount} RS Earned`, 'success');
                     break;
                 case 'STATE_UPDATE':
                     gameState = data.state;
@@ -595,12 +629,12 @@
                 listEl.innerHTML = gameState.players.filter(p => p).map(p => {
                     const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
                     return `
-                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm animate-pop">
+                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm animate-pop ${!p.online ? 'opacity-50 grayscale' : ''}">
                         <div class="flex items-center gap-4">
                             <div class="avatar-circle border-indigo-50">${av.icon}</div>
                             <span class="font-black text-slate-700 text-sm truncate max-w-[150px] uppercase tracking-tight">${p.name} ${p.id === myId ? '<span class="text-indigo-500 font-bold ml-1 tracking-widest text-[9px]">(YOU)</span>' : ''}</span>
                         </div>
-                        ${p.isHost ? '<span class="text-[8px] font-black bg-slate-900 text-white px-2.5 py-1 rounded-full uppercase tracking-widest">MASTER</span>' : ''}
+                        ${!p.online ? '<span class="text-[7px] font-black bg-red-100 text-red-600 px-2.5 py-1 rounded-full uppercase tracking-widest">OFFLINE</span>' : (p.isHost ? '<span class="text-[8px] font-black bg-slate-900 text-white px-2.5 py-1 rounded-full uppercase tracking-widest">MASTER</span>' : '')}
                     </div>`;
                 }).join('');
             }
@@ -612,17 +646,29 @@
             const inputSecret = document.getElementById('input-secret');
             document.getElementById('setup-info-len').innerText = gameState.config.length;
             document.getElementById('setup-info-mode').innerText = gameState.config.mode === 'numbers' ? 'digit' : 'word';
+
             if (inputSecret) {
                 inputSecret.maxLength = gameState.config.length;
                 inputSecret.placeholder = "?".repeat(gameState.config.length);
+                if (!gameState.players.find(p => p && p.id === myId)?.isReady) {
+                    inputSecret.disabled = false;
+                    inputSecret.value = "";
+                }
             }
             const me = gameState.players.find(p => p && p.id === myId);
             if (me?.isReady) {
-                document.getElementById('btn-ready').classList.add('hidden');
-                document.getElementById('ready-status').classList.remove('hidden');
+                const br = document.getElementById('btn-ready');
+                const rs = document.getElementById('ready-status');
+                if (br) br.classList.add('hidden');
+                if (rs) rs.classList.remove('hidden');
                 if (inputSecret) inputSecret.disabled = true;
                 const listEl = document.getElementById('ready-players-list');
                 if (listEl) listEl.innerText = `Verified: ${gameState.players.filter(p=>p && p.isReady).map(p=>p.name).join(', ')}`;
+            } else {
+                const br = document.getElementById('btn-ready');
+                const rs = document.getElementById('ready-status');
+                if (br) br.classList.remove('hidden');
+                if (rs) rs.classList.add('hidden');
             }
         }
 
@@ -639,29 +685,37 @@
             if (targetAvEl) targetAvEl.innerText = targetAv.icon;
             const gIn = document.getElementById('input-guess');
             const gBtn = document.getElementById('btn-submit-guess');
-            if (gIn) { gIn.disabled = !isMyTurn; gIn.maxLength = gameState.config.length; gIn.placeholder = isMyTurn ? "Code Required" : "Waiting..."; }
+            if (gIn) {
+                gIn.disabled = !isMyTurn;
+                gIn.maxLength = gameState.config.length;
+                gIn.placeholder = isMyTurn ? "Input Code" : (turnPlayer.online ? "Enemy Thinking..." : "Enemy Offline!");
+            }
             if (gBtn) gBtn.disabled = !isMyTurn;
+
             const gpEl = document.getElementById('game-players');
             if (gpEl) {
                 gpEl.innerHTML = gameState.players.filter(p => p).map((p, idx) => {
                     const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
                     const isActive = idx === gameState.currentTurnIndex;
                     const nextP = gameState.players[(idx+1)%gameState.players.length];
-                    return `<div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'}">
+                    return `
+                    <div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'} ${!p.online ? 'opacity-40' : ''}">
                         <span class="text-xl">${av.icon}</span>
                         <div class="leading-none">
-                            <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name}</p>
+                            <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name} ${!p.online ? '⚠️' : ''}</p>
                             <p class="text-[7px] text-slate-400 font-black uppercase tracking-widest mt-1">vs ${nextP ? nextP.name : '?'}</p>
                         </div>
                     </div>`;
                 }).join('');
             }
+
             const hLog = document.getElementById('history-log');
             if (hLog) {
                 hLog.innerHTML = gameState.history.map(h => {
                     const player = gameState.players.find(p => p && p.name === h.playerName);
                     const av = AVATAR_SKINS.find(a => a.id === (player ? player.avatarId : 'default')) || AVATAR_SKINS[0];
-                    return `<div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
+                    return `
+                    <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm">${av.icon}</span>
@@ -669,7 +723,9 @@
                             </div>
                             ${h.isTimeout ? '<span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black uppercase">Clock Ran Out</span>' : ''}
                         </div>
-                        <div class="flex gap-1.5 flex-wrap">${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}</div>
+                        <div class="flex gap-1.5 flex-wrap">
+                            ${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}
+                        </div>
                     </div>`;
                 }).reverse().join('');
             }
@@ -677,7 +733,11 @@
         }
 
         function startTimerLoop() {
-            if (gameState.config.timerSeconds <= 0) return;
+            const turnPlayer = gameState.players[gameState.currentTurnIndex];
+            if (gameState.config.timerSeconds <= 0 || !turnPlayer || !turnPlayer.online) {
+                if (timerInterval) clearInterval(timerInterval);
+                return;
+            }
             if (timerInterval) clearInterval(timerInterval);
             const tc = document.getElementById('timer-container');
             const tt = document.getElementById('timer-text');
@@ -711,8 +771,8 @@
                 for (let i = 0; i < gArr.length; i++) { if (gArr[i] === tArr[i]) { flags[i] = 'correct'; tArr[i] = null; } }
                 for (let i = 0; i < gArr.length; i++) {
                     if (flags[i]) continue;
-                    let f = tArr.indexOf(gArr[i]);
-                    if (f !== -1) { flags[i] = 'present'; tArr[f] = null; } else flags[i] = 'absent';
+                    let found = tArr.indexOf(gArr[i]);
+                    if (found !== -1) { flags[i] = 'present'; tArr[found] = null; } else flags[i] = 'absent';
                 }
                 results = flags.map((f, i) => ({ digit: gArr[i], type: f }));
             }
@@ -732,30 +792,54 @@
         }
 
         function renderResult() {
-            const wt = document.getElementById('winner-text');
-            if (wt) wt.innerText = gameState.winner.toUpperCase();
-            const rl = document.getElementById('reveal-list');
-            if (rl) {
-                rl.innerHTML = gameState.players.filter(p => p).map(p => {
-                    const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
-                    return `<div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
-                        <span class="text-3xl">${av.icon}</span>
-                        <div class="text-center">
-                            <p class="text-[9px] font-black text-slate-400 uppercase truncate max-w-[90px] mb-1 tracking-widest">${p.name}</p>
-                            <p class="text-xl font-black text-slate-800 tracking-widest">${p.secret}</p>
-                        </div>
-                    </div>`;
-                }).join('');
+            document.getElementById('winner-text').innerText = gameState.winner?.toUpperCase() || "ARENA CLEARED";
+            document.getElementById('reveal-list').innerHTML = gameState.players.filter(p => p).map(p => {
+                const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
+                return `
+                <div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
+                    <span class="text-3xl">${av.icon}</span>
+                    <div class="text-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase truncate max-w-[90px] mb-1 tracking-widest">${p.name}</p>
+                        <p class="text-xl font-black text-slate-800 tracking-widest">${p.secret}</p>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const rb = document.getElementById('btn-rematch');
+            const rw = document.getElementById('rematch-waiting');
+            if (isHost) {
+                if (rb) rb.classList.remove('hidden');
+                if (rw) rw.classList.add('hidden');
+            } else {
+                if (rb) rb.classList.add('hidden');
+                if (rw) rw.classList.remove('hidden');
             }
         }
 
+        function initiateRematch() {
+            if (!isHost) return;
+            gameState.history = [];
+            gameState.winner = null;
+            gameState.currentTurnIndex = 0;
+            gameState.status = 'setup';
+            gameState.players.forEach(p => { if (p) { p.isReady = false; p.secret = ""; } });
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            broadcastState();
+            notify("New Round Initiated!", "success");
+        }
+
         function requestSecrets() {
-            if (!isHost || gameState.players.length < 2) return notify("Minimum 2 Duelists Required", 'error');
-            gameState.config.length = parseInt(document.getElementById('config-length').value);
-            gameState.config.mode = document.getElementById('config-mode').value;
-            gameState.config.timerSeconds = parseInt(document.getElementById('config-timer').value);
-            gameState.config.arenaSkinId = document.getElementById('config-arena').value;
-            gameState.config.maxPlayers = parseInt(document.getElementById('config-max-players').value);
+            if (!isHost || gameState.players.length < 2) return notify("Min 2 Duelists Required", 'error');
+            const cl = document.getElementById('config-length');
+            const cm = document.getElementById('config-mode');
+            const ct = document.getElementById('config-timer');
+            const ca = document.getElementById('config-arena');
+            const cax = document.getElementById('config-max-players');
+            gameState.config.length = parseInt(cl.value);
+            gameState.config.mode = cm.value;
+            gameState.config.timerSeconds = parseInt(ct.value);
+            gameState.config.arenaSkinId = ca.value;
+            gameState.config.maxPlayers = parseInt(cax.value);
             gameState.status = 'setup';
             broadcastState();
         }
@@ -797,80 +881,86 @@
             if (inputGuess) inputGuess.value = "";
         }
 
-        function broadcastState() { 
-            if (isHost) { connections.forEach(c => { if(c && c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); }
-            syncUI(); 
-        }
-
+        function broadcastState() { if (isHost) { connections.forEach(c => { if(c && c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); } syncUI(); }
+        
         function showScreen(id) { 
             ['start', 'shop', 'lobby', 'setup', 'game', 'result'].forEach(s => {
                 const el = document.getElementById(`screen-${s}`);
                 if (el) el.classList.toggle('hidden', s !== id);
             });
+            // Update the reconnect card visibility if on start screen
+            if (id === 'start') {
+                const lastId = localStorage.getItem('duel_last_room');
+                const cont = document.getElementById('reconnect-container');
+                if (lastId) {
+                    cont.classList.remove('hidden');
+                    document.getElementById('last-room-id-text').innerText = lastId;
+                } else {
+                    cont.classList.add('hidden');
+                }
+            }
         }
 
         function showShop() { showScreen('shop'); renderShop('arenas'); }
         function hideShop() { showScreen('start'); }
-        
         function copyInviteLink(e) {
             const id = document.getElementById('display-id').innerText;
             if (id === "------") return;
-            const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${id}`;
-            const el = document.createElement('textarea'); el.value = inviteUrl; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-            const btn = e.currentTarget; const original = btn.innerHTML;
-            btn.innerHTML = '<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg><span class="text-[10px] font-black uppercase text-green-500 pr-1">Saved</span>';
-            setTimeout(() => { btn.innerHTML = original; }, 2000);
+            const link = `${window.location.origin}${window.location.pathname}?room=${id}`;
+            const el = document.createElement('textarea'); el.value = link; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
             notify("Invite Link Copied!", "success");
         }
-
         function checkDeepLink() {
             const id = new URLSearchParams(window.location.search).get('room');
-            if (id) {
-                const input = document.getElementById('join-id');
-                if (input) input.value = id;
-                notify("Room Code Applied!");
+            if (id) { document.getElementById('join-id').value = id; notify("Room Code Applied!"); }
+        }
+        
+        function rejoinLastRoom() {
+            const lastId = localStorage.getItem('duel_last_room');
+            if (lastId) {
+                document.getElementById('join-id').value = lastId;
+                joinGame();
             }
         }
 
         function hostGame() {
-            const nameEl = document.getElementById('host-name');
-            const name = nameEl ? nameEl.value.trim() : "";
-            if (!name) return notify("Commander Name Required", 'error');
-            isHost = true; myName = name;
-            gameState.players = [{ id: myId, name: myName, isHost: true, isReady: false, avatarId: playerProfile.activeAvatar }];
+            const n = document.getElementById('host-name').value.trim();
+            if (!n) return notify("Commander Name Required", 'error');
+            isHost = true; myName = n;
+            gameState.players = [{ id: myId, sessionId: playerProfile.sessionId, name: myName, isHost: true, isReady: false, avatarId: playerProfile.activeAvatar, online: true }];
             gameState.config.arenaSkinId = playerProfile.activeArena;
-            const arenaSel = document.getElementById('config-arena');
-            if (arenaSel) { arenaSel.innerHTML = ARENA_SKINS.filter(s => playerProfile.unlockedArenas.includes(s.id)).map(s => `<option value="${s.id}" ${s.id === playerProfile.activeArena ? 'selected' : ''}>${s.name}</option>`).join(''); }
+            localStorage.setItem('duel_last_room', myId);
+            const as = document.getElementById('config-arena');
+            if (as) as.innerHTML = ARENA_SKINS.filter(s => playerProfile.unlockedArenas.includes(s.id)).map(s => `<option value="${s.id}" ${s.id === playerProfile.activeArena ? 'selected' : ''}>${s.name}</option>`).join('');
             showScreen('lobby');
-            const hc = document.getElementById('host-controls');
-            if (hc) hc.classList.remove('hidden');
+            document.getElementById('host-controls').classList.remove('hidden');
             renderLobby();
         }
 
         function joinGame() {
-            const nameEl = document.getElementById('join-name');
-            const idEl = document.getElementById('join-id');
-            const name = nameEl ? nameEl.value.trim() : "";
-            const targetId = idEl ? idEl.value.trim() : "";
-            if (!name || !targetId) return notify("Name & Room Code Required", 'error');
-            myName = name;
-            conn = peer.connect(targetId, { reliable: true });
+            const n = document.getElementById('join-name').value.trim();
+            const tid = document.getElementById('join-id').value.trim();
+            if (!n || !tid) return notify("Name & Room Code Required", 'error');
+            myName = n;
+            localStorage.setItem('duel_last_room', tid);
+            conn = peer.connect(tid, { reliable: true });
             conn.on('open', () => {
-                conn.send({ type: 'JOIN_REQUEST', name: myName, id: myId, avatarId: playerProfile.activeAvatar });
+                conn.send({ type: 'JOIN_REQUEST', sessionId: playerProfile.sessionId, name: myName, id: myId, avatarId: playerProfile.activeAvatar });
                 showScreen('lobby');
-                const gw = document.getElementById('guest-waiting');
-                if (gw) gw.classList.remove('hidden');
+                document.getElementById('guest-waiting').classList.remove('hidden');
             });
             conn.on('data', (data) => handleIncomingData(data, conn));
-            conn.on('close', () => { notify("Disconnected from Host", "error"); setTimeout(() => location.reload(), 1500); });
+            conn.on('close', () => { 
+                notify("Disconnected. Tap Rejoin to Return.", "error"); 
+                showScreen('start'); 
+            });
         }
 
         function initPeer() {
             peer = new Peer(undefined, PEER_CONFIG);
             peer.on('open', (id) => {
                 myId = id;
-                const did = document.getElementById('display-id');
-                if (did) did.innerText = id;
+                document.getElementById('display-id').innerText = id;
                 updatePeerStatus('ready', 'Online');
                 saveProfile();
                 checkDeepLink();
@@ -878,22 +968,29 @@
             peer.on('connection', (c) => {
                 if (!isHost) return;
                 c.on('open', () => {
-                    if (gameState.players.length >= gameState.config.maxPlayers || gameState.status !== 'lobby') {
-                        c.send({ type: 'ROOM_LOCKED' }); setTimeout(() => c.close(), 1000); return;
-                    }
                     connections.push(c);
                     c.on('data', (data) => handleIncomingData(data, c));
                     c.on('close', () => {
                         connections = connections.filter(conn => conn !== c);
-                        gameState.players = gameState.players.filter(p => p && p.id !== c.peer);
+                        const player = gameState.players.find(p => p && p.id === c.peer);
+                        if (player) {
+                            if (gameState.status === 'lobby') {
+                                gameState.players = gameState.players.filter(p => p && p.id !== c.peer);
+                            } else {
+                                player.online = false;
+                                notify(`${player.name} disconnected!`, 'info');
+                            }
+                        }
                         broadcastState();
                     });
                 });
             });
             peer.on('error', (err) => { 
-                console.error(err); 
-                if (err.type === 'peer-unavailable') notify("Target Room not found", "error");
+                if (err.type === 'peer-unavailable') notify("Room not found", "error");
                 updatePeerStatus('error', 'Error'); 
+            });
+            peer.on('disconnected', () => {
+                peer.reconnect();
             });
         }
 
