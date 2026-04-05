@@ -82,7 +82,8 @@
         }
 
         .preview-tile {
-            background: var(--bg-grad);
+            background: var(--bg-grad) !important;
+            border: 1px solid rgba(0,0,0,0.1);
         }
 
         @keyframes pop {
@@ -156,13 +157,7 @@
                 <div class="text-center space-y-3">
                     <h2 class="text-3xl sm:text-4xl font-black text-slate-800 uppercase tracking-tight text-balance leading-tight">Crack the Secret</h2>
                     <p class="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto">Set your secret, challenge your rivals, and dominate the leaderboard.</p>
-                    <p class="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto">
-                        Made by 
-                        <a href="mailto:dsouzacraigmichael@gmail.com" class="underline hover:text-slate-700">
-                            dsouzacraigmichael@gmail.com
-                        </a>
-                        </p>
-                    </div>
+                </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
                     <div class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-indigo-400 hover:shadow-xl transition-all group">
@@ -434,8 +429,10 @@
             { id: 'alien', name: 'Cosmic Alien', price: 200, icon: '👽' }
         ];
 
+        // --- Fix: Proper initial load from storage ---
+        const storedCredits = localStorage.getItem('duel_credits');
         let playerProfile = {
-            credits: parseInt(localStorage.getItem('duel_credits')) || 100,
+            credits: storedCredits !== null ? parseInt(storedCredits) : 100,
             unlockedArenas: JSON.parse(localStorage.getItem('duel_arenas')) || ['classic'],
             unlockedAvatars: JSON.parse(localStorage.getItem('duel_avatars')) || ['default'],
             activeArena: localStorage.getItem('duel_active_arena') || 'classic',
@@ -454,7 +451,7 @@
             
             if (peer && myId) {
                 if (isHost) {
-                    const me = gameState.players.find(p => p.id === myId);
+                    const me = gameState.players.find(p => p && p.id === myId);
                     if (me) { me.avatarId = playerProfile.activeAvatar; broadcastState(); }
                 } else if (conn && conn.open) {
                     conn.send({ type: 'UPDATE_PROFILE', avatarId: playerProfile.activeAvatar });
@@ -499,6 +496,9 @@
                 const isActive = active === item.id;
                 const isArena = type === 'arenas';
                 
+                // Construct a temporary theme style for arena preview tiles
+                const arenaClass = item.class || '';
+                
                 return `
                 <div class="p-5 rounded-3xl border-2 transition-all ${isActive ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-100 bg-white hover:border-slate-200'}">
                     <div class="flex justify-between items-center mb-3">
@@ -506,11 +506,11 @@
                         ${isUnlocked ? '<span class="text-[9px] text-green-600 font-black tracking-widest">OWNED</span>' : `<span class="text-xs font-black text-yellow-600">🪙 ${item.price}</span>`}
                     </div>
                     <div class="h-20 flex items-center justify-center rounded-2xl mb-4 overflow-hidden border border-slate-100 ${!isArena ? 'bg-slate-50' : ''}">
-                        ${!isArena ? `<span class="text-4xl filter drop-shadow-md">${item.icon}</span>` : `<div class="w-full h-full ${item.class} preview-tile"></div>`}
+                        ${!isArena ? `<span class="text-4xl filter drop-shadow-md">${item.icon}</span>` : `<div class="w-full h-full preview-tile ${arenaClass}"></div>`}
                     </div>
                     <button onclick="${isUnlocked ? `equipSkin('${type}', '${item.id}')` : `buySkin('${type}', '${item.id}')`}" 
                             ${isActive ? 'disabled' : ''} 
-                            class="w-full py-3 text-[10px] font-black rounded-xl transition-all ${isActive ? 'bg-slate-200 text-slate-500' : 'btn-primary'} uppercase tracking-[0.2em]">
+                            class="w-full py-3 text-[10px] font-black rounded-xl transition-all ${isActive ? 'bg-slate-200 text-slate-400' : 'btn-primary'} uppercase tracking-[0.2em]">
                         ${isActive ? 'Active' : (isUnlocked ? 'Equip' : 'Purchase')}
                     </button>
                 </div>`;
@@ -533,7 +533,7 @@
             }
         }
 
-        // --- P2P Logic ---
+        // --- Network Logic ---
         let peer = null;
         let connections = [];
         let conn = null; 
@@ -566,7 +566,7 @@
                 const displayId = document.getElementById('display-id');
                 if (displayId) displayId.innerText = id;
                 updatePeerStatus('ready', 'Online');
-                saveProfile();
+                saveProfile(); // Ensure credits update in UI on load
             });
             peer.on('connection', (c) => {
                 if (!isHost) return;
@@ -580,7 +580,7 @@
                     c.on('data', (data) => handleIncomingData(data, c));
                     c.on('close', () => {
                         connections = connections.filter(conn => conn !== c);
-                        gameState.players = gameState.players.filter(p => p.id !== c.peer);
+                        gameState.players = gameState.players.filter(p => p && p.id !== c.peer);
                         broadcastState();
                     });
                 });
@@ -632,7 +632,7 @@
             conn.on('data', (data) => handleIncomingData(data, conn));
             conn.on('close', () => {
                 notify("Disconnected from Host", "error");
-                location.reload();
+                setTimeout(() => location.reload(), 1500);
             });
         }
 
@@ -646,7 +646,7 @@
                     break;
                 case 'UPDATE_PROFILE':
                     if (isHost) {
-                        const p = gameState.players.find(p => p.id === sender.peer);
+                        const p = gameState.players.find(p => p && p.id === sender.peer);
                         if (p) { p.avatarId = data.avatarId; broadcastState(); }
                     }
                     break;
@@ -665,11 +665,11 @@
                     break;
                 case 'SUBMIT_SECRET':
                     if (isHost) {
-                        const p = gameState.players.find(p => p.id === data.playerId);
+                        const p = gameState.players.find(p => p && p.id === data.playerId);
                         if (p) {
                             p.secret = data.secret.toUpperCase();
                             p.isReady = true;
-                            if (gameState.players.every(p => p.isReady)) {
+                            if (gameState.players.every(p => p && p.isReady)) {
                                 gameState.status = 'playing';
                                 gameState.turnStartedAt = Date.now();
                             }
@@ -697,7 +697,7 @@
         function renderLobby() {
             const listEl = document.getElementById('lobby-players');
             if (listEl) {
-                listEl.innerHTML = gameState.players.map(p => {
+                listEl.innerHTML = gameState.players.filter(p => p).map(p => {
                     const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
                     return `
                     <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm animate-pop">
@@ -715,20 +715,24 @@
 
         function renderSetup() {
             const inputSecret = document.getElementById('input-secret');
-            document.getElementById('setup-info-len').innerText = gameState.config.length;
-            document.getElementById('setup-info-mode').innerText = gameState.config.mode === 'numbers' ? 'digit' : 'word';
+            const setupLen = document.getElementById('setup-info-len');
+            const setupMode = document.getElementById('setup-info-mode');
+            if (setupLen) setupLen.innerText = gameState.config.length;
+            if (setupMode) setupMode.innerText = gameState.config.mode === 'numbers' ? 'digit' : 'word';
 
             if (inputSecret) {
                 inputSecret.maxLength = gameState.config.length;
                 inputSecret.placeholder = "?".repeat(gameState.config.length);
             }
-            const me = gameState.players.find(p => p.id === myId);
+            const me = gameState.players.find(p => p && p.id === myId);
             if (me?.isReady) {
-                document.getElementById('btn-ready').classList.add('hidden');
-                document.getElementById('ready-status').classList.remove('hidden');
+                const br = document.getElementById('btn-ready');
+                const rs = document.getElementById('ready-status');
+                if (br) br.classList.add('hidden');
+                if (rs) rs.classList.remove('hidden');
                 if (inputSecret) inputSecret.disabled = true;
-                const listEl = document.getElementById('ready-players-list');
-                if (listEl) listEl.innerText = `Verified: ${gameState.players.filter(p=>p.isReady).map(p=>p.name).join(', ')}`;
+                const rpl = document.getElementById('ready-players-list');
+                if (rpl) rpl.innerText = `Verified: ${gameState.players.filter(p=>p && p.isReady).map(p=>p.name).join(', ')}`;
             }
         }
 
@@ -737,54 +741,65 @@
             if (!turnPlayer) return;
 
             const isMyTurn = turnPlayer.id === myId;
-            const targetPlayer = gameState.players[(gameState.currentTurnIndex + 1) % gameState.players.length];
+            const targetIndex = (gameState.currentTurnIndex + 1) % gameState.players.length;
+            const targetPlayer = gameState.players[targetIndex];
             const targetAv = AVATAR_SKINS.find(a => a.id === targetPlayer.avatarId) || AVATAR_SKINS[0];
 
-            document.getElementById('current-turn-name').innerText = isMyTurn ? "YOUR MOVE" : turnPlayer.name.toUpperCase();
-            document.getElementById('game-target-name').innerText = targetPlayer.name.toUpperCase();
-            const targetAvEl = document.getElementById('target-avatar');
-            if (targetAvEl) targetAvEl.innerText = targetAv.icon;
+            const ctn = document.getElementById('current-turn-name');
+            const gtn = document.getElementById('game-target-name');
+            const tva = document.getElementById('target-avatar');
+
+            if (ctn) ctn.innerText = isMyTurn ? "YOUR MOVE" : turnPlayer.name.toUpperCase();
+            if (gtn) gtn.innerText = targetPlayer.name.toUpperCase();
+            if (tva) { tva.innerText = targetAv.icon; }
             
             const gIn = document.getElementById('input-guess');
             const gBtn = document.getElementById('btn-submit-guess');
             if (gIn) {
                 gIn.disabled = !isMyTurn;
                 gIn.maxLength = gameState.config.length;
-                gIn.placeholder = isMyTurn ? "Code Required" : "Enemy Calculating...";
+                gIn.placeholder = isMyTurn ? "Input Code" : "Enemy Calculating...";
             }
             if (gBtn) gBtn.disabled = !isMyTurn;
 
-            // Render horizontal player bar
-            document.getElementById('game-players').innerHTML = gameState.players.map((p, idx) => {
-                const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
-                const isActive = idx === gameState.currentTurnIndex;
-                return `
-                <div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'}">
-                    <span class="text-xl">${av.icon}</span>
-                    <div class="leading-none">
-                        <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name}</p>
-                        <p class="text-[7px] text-slate-400 font-black uppercase tracking-widest mt-1">vs ${gameState.players[(idx+1)%gameState.players.length].name}</p>
-                    </div>
-                </div>`;
-            }).join('');
-
-            document.getElementById('history-log').innerHTML = gameState.history.map(h => {
-                const player = gameState.players.find(p => p.name === h.playerName);
-                const av = AVATAR_SKINS.find(a => a.id === player?.avatarId) || AVATAR_SKINS[0];
-                return `
-                <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm">${av.icon}</span>
-                            <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">${h.playerName} ➔ ${h.targetName}</span>
+            // Render top horizontal player bar
+            const gpEl = document.getElementById('game-players');
+            if (gpEl) {
+                gpEl.innerHTML = gameState.players.filter(p => p).map((p, idx) => {
+                    const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
+                    const isActive = idx === gameState.currentTurnIndex;
+                    const nextP = gameState.players[(idx+1)%gameState.players.length];
+                    return `
+                    <div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'}">
+                        <span class="text-xl">${av.icon}</span>
+                        <div class="leading-none">
+                            <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name}</p>
+                            <p class="text-[7px] text-slate-400 font-black uppercase tracking-widest mt-1">vs ${nextP ? nextP.name : '?'}</p>
                         </div>
-                        ${h.isTimeout ? '<span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black uppercase">Clock Ran Out</span>' : ''}
-                    </div>
-                    <div class="flex gap-1.5 flex-wrap">
-                        ${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}
-                    </div>
-                </div>`;
-            }).reverse().join('');
+                    </div>`;
+                }).join('');
+            }
+
+            const hLog = document.getElementById('history-log');
+            if (hLog) {
+                hLog.innerHTML = gameState.history.map(h => {
+                    const player = gameState.players.find(p => p && p.name === h.playerName);
+                    const av = AVATAR_SKINS.find(a => a.id === (player ? player.avatarId : 'default')) || AVATAR_SKINS[0];
+                    return `
+                    <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">${av.icon}</span>
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">${h.playerName} ➔ ${h.targetName}</span>
+                            </div>
+                            ${h.isTimeout ? '<span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black uppercase">Clock Ran Out</span>' : ''}
+                        </div>
+                        <div class="flex gap-1.5 flex-wrap">
+                            ${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}
+                        </div>
+                    </div>`;
+                }).reverse().join('');
+            }
                 
             startTimerLoop();
         }
@@ -793,10 +808,10 @@
             if (gameState.config.timerSeconds <= 0) return;
             if (timerInterval) clearInterval(timerInterval);
             
-            const timerCont = document.getElementById('timer-container');
-            const timerTxt = document.getElementById('timer-text');
-            if (timerCont) timerCont.classList.remove('hidden');
-            if (timerTxt) timerTxt.classList.remove('hidden');
+            const tc = document.getElementById('timer-container');
+            const tt = document.getElementById('timer-text');
+            if (tc) tc.classList.remove('hidden');
+            if (tt) tt.classList.remove('hidden');
 
             timerInterval = setInterval(() => {
                 const diff = (Date.now() - gameState.turnStartedAt) / 1000;
@@ -819,7 +834,7 @@
 
         function processGuess(guess, playerId) {
             if (!isHost) return;
-            const pIdx = gameState.players.findIndex(p => p.id === playerId);
+            const pIdx = gameState.players.findIndex(p => p && p.id === playerId);
             if (pIdx === -1) return;
             
             const target = gameState.players[(pIdx + 1) % gameState.players.length];
@@ -857,7 +872,7 @@
                     saveProfile();
                     notify("Champion! +100 RS Earned", 'success');
                 } else {
-                    const winnerConn = connections.find(c => c.peer === winnerId);
+                    const winnerConn = connections.find(c => c && c.peer === winnerId);
                     if (winnerConn) winnerConn.send({ type: 'WIN_REWARD', amount: 100 });
                 }
             } else {
@@ -869,27 +884,39 @@
         }
 
         function renderResult() {
-            document.getElementById('winner-text').innerText = gameState.winner.toUpperCase();
-            document.getElementById('reveal-list').innerHTML = gameState.players.map(p => {
-                const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
-                return `
-                <div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
-                    <span class="text-3xl">${av.icon}</span>
-                    <div class="text-center">
-                        <p class="text-[9px] font-black text-slate-400 uppercase truncate max-w-[90px] mb-1 tracking-widest">${p.name}</p>
-                        <p class="text-xl font-black text-slate-800 tracking-widest">${p.secret}</p>
-                    </div>
-                </div>`;
-            }).join('');
+            const wt = document.getElementById('winner-text');
+            if (wt) wt.innerText = gameState.winner.toUpperCase();
+            const rl = document.getElementById('reveal-list');
+            if (rl) {
+                rl.innerHTML = gameState.players.filter(p => p).map(p => {
+                    const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
+                    return `
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
+                        <span class="text-3xl">${av.icon}</span>
+                        <div class="text-center">
+                            <p class="text-[9px] font-black text-slate-400 uppercase truncate max-w-[90px] mb-1 tracking-widest">${p.name}</p>
+                            <p class="text-xl font-black text-slate-800 tracking-widest">${p.secret}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
         }
 
         function requestSecrets() {
             if (!isHost || gameState.players.length < 2) return notify("Minimum 2 Duelists Required", 'error');
-            gameState.config.length = parseInt(document.getElementById('config-length').value);
-            gameState.config.mode = document.getElementById('config-mode').value;
-            gameState.config.timerSeconds = parseInt(document.getElementById('config-timer').value);
-            gameState.config.arenaSkinId = document.getElementById('config-arena').value;
-            gameState.config.maxPlayers = parseInt(document.getElementById('config-max-players').value);
+            
+            const cl = document.getElementById('config-length');
+            const cm = document.getElementById('config-mode');
+            const ct = document.getElementById('config-timer');
+            const ca = document.getElementById('config-arena');
+            const cax = document.getElementById('config-max-players');
+
+            gameState.config.length = parseInt(cl.value);
+            gameState.config.mode = cm.value;
+            gameState.config.timerSeconds = parseInt(ct.value);
+            gameState.config.arenaSkinId = ca.value;
+            gameState.config.maxPlayers = parseInt(cax.value);
+            
             gameState.status = 'setup';
             broadcastState();
         }
@@ -902,29 +929,28 @@
             }
             if (gameState.config.mode === 'words') {
                 const btn = document.getElementById('btn-ready');
-                btn.innerText = "VALIDATING...";
-                btn.disabled = true;
+                if (btn) { btn.innerText = "VALIDATING..."; btn.disabled = true; }
                 const validWord = await isRealWord(val);
                 if (!validWord) {
                     notify("Unrecognized English Word!", 'error');
-                    btn.innerText = "Seal Code";
-                    btn.disabled = false;
+                    if (btn) { btn.innerText = "Seal Code"; btn.disabled = false; }
                     return;
                 }
-                btn.innerText = "Seal Code";
-                btn.disabled = false;
+                if (btn) { btn.innerText = "Seal Code"; btn.disabled = false; }
             }
             if (isHost) {
-                const me = gameState.players.find(p => p.id === myId);
+                const me = gameState.players.find(p => p && p.id === myId);
                 if (me) {
                     me.secret = val; me.isReady = true;
-                    if (gameState.players.every(p => p.isReady)) { gameState.status = 'playing'; gameState.turnStartedAt = Date.now(); }
+                    if (gameState.players.every(p => p && p.isReady)) { gameState.status = 'playing'; gameState.turnStartedAt = Date.now(); }
                     broadcastState();
                 }
             } else {
                 conn.send({ type: 'SUBMIT_SECRET', secret: val, playerId: myId });
-                document.getElementById('btn-ready').classList.add('hidden');
-                document.getElementById('ready-status').classList.remove('hidden');
+                const br = document.getElementById('btn-ready');
+                const rs = document.getElementById('ready-status');
+                if (br) br.classList.add('hidden');
+                if (rs) rs.classList.remove('hidden');
             }
         }
 
@@ -935,12 +961,14 @@
                 return notify(`Requirement: ${gameState.config.length} Characters`, 'error');
             }
             if (isHost) processGuess(val, myId);
-            else conn.send({ type: 'SUBMIT_GUESS', guess: val, playerId: myId });
+            else if (conn) conn.send({ type: 'SUBMIT_GUESS', guess: val, playerId: myId });
             if (inputGuess) inputGuess.value = "";
         }
 
         function broadcastState() { 
-            if (isHost) connections.forEach(c => { if(c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); 
+            if (isHost) {
+                connections.forEach(c => { if(c && c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); 
+            }
             syncUI(); 
         }
 
@@ -955,7 +983,8 @@
         function hideShop() { showScreen('start'); }
         
         function copyRoomId(e) { 
-            const id = document.getElementById('display-id').innerText;
+            const did = document.getElementById('display-id');
+            const id = did ? did.innerText : "------";
             if (id === "------") return;
             const el = document.createElement('textarea'); el.value = id; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
             const btn = e.currentTarget; const originalIcon = btn.innerHTML;
