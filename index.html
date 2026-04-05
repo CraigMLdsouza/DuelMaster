@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Duel Master Pro - Numbers & Words</title>
+    <title>Duel Master Pro - Global Multiplayer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -215,11 +215,12 @@
             <div id="screen-lobby" class="hidden p-6 sm:p-8 space-y-8 screen-transition">
                 <div class="flex flex-col items-center gap-5 bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100 relative overflow-hidden group">
                     <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500/20 group-hover:bg-indigo-500/40 transition-colors"></div>
-                    <p class="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase text-center">Encrypted Room Key</p>
+                    <p class="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase text-center">Encrypted Invite Link</p>
                     <div class="flex gap-3 items-center">
                         <code id="display-id" class="text-2xl sm:text-3xl font-mono font-black text-slate-800 tracking-widest">------</code>
-                        <button onclick="copyRoomId(event)" class="p-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all shadow-sm active:scale-90" title="Copy Key">
-                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                        <button onclick="copyInviteLink(event)" class="p-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all shadow-sm active:scale-90 flex items-center gap-2" title="Copy Invite Link">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                            <span class="text-[10px] font-black uppercase text-indigo-600 pr-1">Invite</span>
                         </button>
                     </div>
                 </div>
@@ -238,7 +239,7 @@
                 <div id="host-controls" class="hidden border-t border-slate-100 pt-8 space-y-6">
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div class="col-span-2">
-                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Environmental Theme</label>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Theme</label>
                             <select id="config-arena" onchange="updateArenaPreview()" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
                             </select>
                         </div>
@@ -270,16 +271,16 @@
                             </select>
                         </div>
                         <div>
-                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Turn Clock</label>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Clock</label>
                             <select id="config-timer" class="w-full p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
                                 <option value="0">Off</option>
-                                <option value="30">30 Seconds</option>
-                                <option value="60">60 Seconds</option>
-                                <option value="90">90 Seconds</option>
+                                <option value="30">30s</option>
+                                <option value="60">60s</option>
+                                <option value="90">90s</option>
                             </select>
                         </div>
                     </div>
-                    <button onclick="requestSecrets()" class="w-full btn-primary font-black py-5 rounded-[1.5rem] shadow-xl transition-all uppercase tracking-[0.2em] text-sm">Lock Room & Start</button>
+                    <button onclick="requestSecrets()" class="w-full btn-primary font-black py-5 rounded-[1.5rem] shadow-xl transition-all uppercase tracking-[0.2em] text-sm">Initiate Duel</button>
                 </div>
                 <p id="guest-waiting" class="hidden text-center text-slate-400 font-bold text-sm py-4 uppercase tracking-widest animate-pulse">Waiting for Master to Initiate Duel...</p>
             </div>
@@ -288,9 +289,8 @@
             <div id="screen-setup" class="hidden p-8 sm:p-12 space-y-8 text-center screen-transition">
                 <div class="space-y-3">
                     <h2 class="text-3xl sm:text-4xl font-black text-slate-800 uppercase tracking-tight">Lock Secret</h2>
-                    <p class="text-slate-500 font-medium">Opponents must guess this exact <span id="setup-info-len" class="text-indigo-600 font-black">4</span>-<span id="setup-info-mode" class="text-indigo-600 font-black">char</span> code.</p>
+                    <p class="text-slate-500 font-medium">Opponents must guess this <span id="setup-info-len" class="text-indigo-600 font-black">4</span>-<span id="setup-info-mode" class="text-indigo-600 font-black">char</span> code.</p>
                 </div>
-                
                 <div class="max-w-xs mx-auto space-y-6">
                     <input type="text" id="input-secret" placeholder="????" class="w-full p-6 text-4xl font-black text-center tracking-[0.4em] bg-slate-50 border-4 border-slate-100 rounded-3xl focus:border-indigo-400 outline-none uppercase shadow-inner transition-all">
                     <button id="btn-ready" onclick="submitSecret()" class="w-full btn-primary font-black py-5 rounded-3xl shadow-xl uppercase tracking-widest text-sm">Seal Code</button>
@@ -312,12 +312,10 @@
                     <div id="timer-bar" class="timer-bar h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
                 </div>
 
-                <!-- NEW: Horizontal Player List (Always visible at top) -->
                 <div class="w-full bg-slate-50/50 border-b border-slate-200 overflow-x-auto custom-scroll shrink-0 py-3 px-4">
                     <div id="game-players" class="flex flex-row gap-3 min-w-max px-2"></div>
                 </div>
 
-                <!-- Simplified Info Strip -->
                 <div class="p-3 bg-white/40 border-b border-slate-200 flex justify-between items-center px-6 sm:px-10 shrink-0">
                     <div class="flex items-center gap-3">
                         <div id="target-avatar" class="avatar-circle shadow-sm border-white w-9 h-9 text-base">?</div>
@@ -336,15 +334,12 @@
                 </div>
 
                 <div class="p-4 sm:p-6 flex flex-col gap-6 flex-1 min-h-0">
-                    <!-- Guess Input -->
                     <div class="space-y-4 shrink-0">
                         <div class="flex gap-3">
                             <input type="text" id="input-guess" placeholder="Guess Code" class="flex-1 p-4 text-2xl font-black tracking-[0.3em] rounded-2xl border-2 border-slate-200 focus:border-indigo-500 outline-none uppercase min-w-0 shadow-sm transition-all placeholder:tracking-normal placeholder:font-bold">
                             <button id="btn-submit-guess" onclick="submitGuess()" class="px-8 btn-primary font-black rounded-2xl transition-all disabled:opacity-50 text-xs tracking-widest uppercase shadow-indigo-500/20 shadow-lg">Fire</button>
                         </div>
                     </div>
-
-                    <!-- History Log (Takes up remaining space) -->
                     <div class="flex-1 min-h-0 flex flex-col">
                         <div class="flex items-center gap-2 mb-3">
                             <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
@@ -375,26 +370,28 @@
     </div>
 
     <script>
-        // --- Core Application Logic ---
-        
+        // --- PeerJS Config for Global Traversal ---
+        const PEER_CONFIG = {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' }
+                ]
+            },
+            debug: 1
+        };
+
         function notify(message, type = 'info') {
             const box = document.getElementById('notification-box');
             const text = document.getElementById('notification-text');
             const icon = document.getElementById('notification-icon');
-            
             text.innerText = message;
-            
-            if (type === 'error') {
-                icon.innerText = '❌';
-                icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-red-100";
-            } else if (type === 'success') {
-                icon.innerText = '✅';
-                icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-green-100";
-            } else {
-                icon.innerText = '⚠️';
-                icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-slate-100";
-            }
-            
+            if (type === 'error') { icon.innerText = '❌'; icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-red-100"; }
+            else if (type === 'success') { icon.innerText = '✅'; icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-green-100"; }
+            else { icon.innerText = '⚠️'; icon.className = "w-10 h-10 rounded-full flex items-center justify-center text-xl bg-slate-100"; }
             box.classList.add('show');
             setTimeout(() => { box.classList.remove('show'); }, 3500);
         }
@@ -406,12 +403,10 @@
                 if (response.status === 404) return false;
                 return response.ok;
             } catch (error) {
-                console.error("Dictionary API Error:", error);
                 return true; 
             }
         }
 
-        // --- Skins Data ---
         const ARENA_SKINS = [
             { id: 'classic', name: 'Classic Dark', price: 0, class: 'theme-classic' },
             { id: 'bubblegum', name: 'Pink Bubblegum', price: 75, class: 'theme-bubblegum' },
@@ -429,7 +424,6 @@
             { id: 'alien', name: 'Cosmic Alien', price: 200, icon: '👽' }
         ];
 
-        // --- Fix: Proper initial load from storage ---
         const storedCredits = localStorage.getItem('duel_credits');
         let playerProfile = {
             credits: storedCredits !== null ? parseInt(storedCredits) : 100,
@@ -445,10 +439,8 @@
             localStorage.setItem('duel_avatars', JSON.stringify(playerProfile.unlockedAvatars));
             localStorage.setItem('duel_active_arena', playerProfile.activeArena);
             localStorage.setItem('duel_active_avatar', playerProfile.activeAvatar);
-            
             const creditsEl = document.getElementById('player-credits');
             if (creditsEl) creditsEl.innerText = playerProfile.credits;
-            
             if (peer && myId) {
                 if (isHost) {
                     const me = gameState.players.find(p => p && p.id === myId);
@@ -487,18 +479,12 @@
             const list = type === 'arenas' ? ARENA_SKINS : AVATAR_SKINS;
             const unlocked = type === 'arenas' ? playerProfile.unlockedArenas : playerProfile.unlockedAvatars;
             const active = type === 'arenas' ? playerProfile.activeArena : playerProfile.activeAvatar;
-
             document.getElementById('tab-arenas').className = `flex-1 py-3 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest ${type === 'arenas' ? 'bg-white shadow-sm' : 'text-slate-400'}`;
             document.getElementById('tab-avatars').className = `flex-1 py-3 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest ${type === 'avatars' ? 'bg-white shadow-sm' : 'text-slate-400'}`;
-
             container.innerHTML = list.map(item => {
                 const isUnlocked = unlocked.includes(item.id);
                 const isActive = active === item.id;
                 const isArena = type === 'arenas';
-                
-                // Construct a temporary theme style for arena preview tiles
-                const arenaClass = item.class || '';
-                
                 return `
                 <div class="p-5 rounded-3xl border-2 transition-all ${isActive ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-100 bg-white hover:border-slate-200'}">
                     <div class="flex justify-between items-center mb-3">
@@ -506,11 +492,11 @@
                         ${isUnlocked ? '<span class="text-[9px] text-green-600 font-black tracking-widest">OWNED</span>' : `<span class="text-xs font-black text-yellow-600">🪙 ${item.price}</span>`}
                     </div>
                     <div class="h-20 flex items-center justify-center rounded-2xl mb-4 overflow-hidden border border-slate-100 ${!isArena ? 'bg-slate-50' : ''}">
-                        ${!isArena ? `<span class="text-4xl filter drop-shadow-md">${item.icon}</span>` : `<div class="w-full h-full preview-tile ${arenaClass}"></div>`}
+                        ${!isArena ? `<span class="text-4xl filter drop-shadow-md">${item.icon}</span>` : `<div class="w-full h-full preview-tile ${item.class}"></div>`}
                     </div>
                     <button onclick="${isUnlocked ? `equipSkin('${type}', '${item.id}')` : `buySkin('${type}', '${item.id}')`}" 
                             ${isActive ? 'disabled' : ''} 
-                            class="w-full py-3 text-[10px] font-black rounded-xl transition-all ${isActive ? 'bg-slate-200 text-slate-400' : 'btn-primary'} uppercase tracking-[0.2em]">
+                            class="w-full py-3 text-[10px] font-black rounded-xl transition-all ${isActive ? 'bg-slate-200 text-slate-500' : 'btn-primary'} uppercase tracking-[0.2em]">
                         ${isActive ? 'Active' : (isUnlocked ? 'Equip' : 'Purchase')}
                     </button>
                 </div>`;
@@ -533,21 +519,8 @@
             }
         }
 
-        // --- Network Logic ---
-        let peer = null;
-        let connections = [];
-        let conn = null; 
-        let myId = null;
-        let myName = "";
-        let isHost = false;
-        let timerInterval = null;
-        
-        let gameState = {
-            players: [], history: [],
-            currentTurnIndex: 0, turnStartedAt: 0,
-            config: { length: 4, mode: 'numbers', timerSeconds: 0, arenaSkinId: 'classic', maxPlayers: 10 },
-            status: 'lobby', winner: null
-        };
+        let peer = null, connections = [], conn = null, myId = null, myName = "", isHost = false, timerInterval = null;
+        let gameState = { players: [], history: [], currentTurnIndex: 0, turnStartedAt: 0, config: { length: 4, mode: 'numbers', timerSeconds: 0, arenaSkinId: 'classic', maxPlayers: 10 }, status: 'lobby', winner: null };
 
         function updatePeerStatus(t, m) {
             const dot = document.getElementById('status-dot');
@@ -557,83 +530,6 @@
                 if (t === 'ready') dot.classList.remove('animate-pulse');
             }
             if (txt) txt.innerText = m;
-        }
-
-        function initPeer() {
-            peer = new Peer();
-            peer.on('open', (id) => {
-                myId = id;
-                const displayId = document.getElementById('display-id');
-                if (displayId) displayId.innerText = id;
-                updatePeerStatus('ready', 'Online');
-                saveProfile(); // Ensure credits update in UI on load
-            });
-            peer.on('connection', (c) => {
-                if (!isHost) return;
-                c.on('open', () => {
-                    if (gameState.players.length >= gameState.config.maxPlayers || gameState.status !== 'lobby') {
-                        c.send({ type: 'ROOM_LOCKED' });
-                        setTimeout(() => c.close(), 1000);
-                        return;
-                    }
-                    connections.push(c);
-                    c.on('data', (data) => handleIncomingData(data, c));
-                    c.on('close', () => {
-                        connections = connections.filter(conn => conn !== c);
-                        gameState.players = gameState.players.filter(p => p && p.id !== c.peer);
-                        broadcastState();
-                    });
-                });
-            });
-            peer.on('error', (err) => {
-                console.error(err);
-                if (err.type === 'peer-unavailable') {
-                    notify("Target Room not found", "error");
-                }
-                updatePeerStatus('error', 'Network Error');
-            });
-        }
-
-        function hostGame() {
-            const nameEl = document.getElementById('host-name');
-            const name = nameEl ? nameEl.value.trim() : "";
-            if (!name) return notify("Commander Name Required", 'error');
-            isHost = true;
-            myName = name;
-            gameState.players = [{ id: myId, name: myName, isHost: true, isReady: false, avatarId: playerProfile.activeAvatar }];
-            gameState.config.arenaSkinId = playerProfile.activeArena;
-            
-            const arenaSel = document.getElementById('config-arena');
-            if (arenaSel) {
-                arenaSel.innerHTML = ARENA_SKINS.filter(s => playerProfile.unlockedArenas.includes(s.id))
-                                    .map(s => `<option value="${s.id}" ${s.id === playerProfile.activeArena ? 'selected' : ''}>${s.name}</option>`).join('');
-            }
-
-            showScreen('lobby');
-            const hostControls = document.getElementById('host-controls');
-            if (hostControls) hostControls.classList.remove('hidden');
-            renderLobby();
-        }
-
-        function joinGame() {
-            const nameEl = document.getElementById('join-name');
-            const idEl = document.getElementById('join-id');
-            const name = nameEl ? nameEl.value.trim() : "";
-            const targetId = idEl ? idEl.value.trim() : "";
-            if (!name || !targetId) return notify("Name & Room Code Required", 'error');
-            myName = name;
-            conn = peer.connect(targetId);
-            conn.on('open', () => {
-                conn.send({ type: 'JOIN_REQUEST', name: myName, id: myId, avatarId: playerProfile.activeAvatar });
-                showScreen('lobby');
-                const guestWait = document.getElementById('guest-waiting');
-                if (guestWait) guestWait.classList.remove('hidden');
-            });
-            conn.on('data', (data) => handleIncomingData(data, conn));
-            conn.on('close', () => {
-                notify("Disconnected from Host", "error");
-                setTimeout(() => location.reload(), 1500);
-            });
         }
 
         function handleIncomingData(data, sender) {
@@ -685,9 +581,8 @@
 
         function syncUI() {
             applyArenaTheme(gameState.config.arenaSkinId);
-            const screenMap = { 'lobby': 'lobby', 'setup': 'setup', 'playing': 'game', 'finished': 'result' };
-            showScreen(screenMap[gameState.status]);
-
+            const screens = ['lobby', 'setup', 'game', 'finished'];
+            showScreen(gameState.status === 'playing' ? 'game' : (gameState.status === 'finished' ? 'result' : gameState.status));
             if (gameState.status === 'lobby') renderLobby();
             else if (gameState.status === 'setup') renderSetup();
             else if (gameState.status === 'playing') renderGame();
@@ -715,62 +610,44 @@
 
         function renderSetup() {
             const inputSecret = document.getElementById('input-secret');
-            const setupLen = document.getElementById('setup-info-len');
-            const setupMode = document.getElementById('setup-info-mode');
-            if (setupLen) setupLen.innerText = gameState.config.length;
-            if (setupMode) setupMode.innerText = gameState.config.mode === 'numbers' ? 'digit' : 'word';
-
+            document.getElementById('setup-info-len').innerText = gameState.config.length;
+            document.getElementById('setup-info-mode').innerText = gameState.config.mode === 'numbers' ? 'digit' : 'word';
             if (inputSecret) {
                 inputSecret.maxLength = gameState.config.length;
                 inputSecret.placeholder = "?".repeat(gameState.config.length);
             }
             const me = gameState.players.find(p => p && p.id === myId);
             if (me?.isReady) {
-                const br = document.getElementById('btn-ready');
-                const rs = document.getElementById('ready-status');
-                if (br) br.classList.add('hidden');
-                if (rs) rs.classList.remove('hidden');
+                document.getElementById('btn-ready').classList.add('hidden');
+                document.getElementById('ready-status').classList.remove('hidden');
                 if (inputSecret) inputSecret.disabled = true;
-                const rpl = document.getElementById('ready-players-list');
-                if (rpl) rpl.innerText = `Verified: ${gameState.players.filter(p=>p && p.isReady).map(p=>p.name).join(', ')}`;
+                const listEl = document.getElementById('ready-players-list');
+                if (listEl) listEl.innerText = `Verified: ${gameState.players.filter(p=>p && p.isReady).map(p=>p.name).join(', ')}`;
             }
         }
 
         function renderGame() {
             const turnPlayer = gameState.players[gameState.currentTurnIndex];
             if (!turnPlayer) return;
-
             const isMyTurn = turnPlayer.id === myId;
             const targetIndex = (gameState.currentTurnIndex + 1) % gameState.players.length;
             const targetPlayer = gameState.players[targetIndex];
             const targetAv = AVATAR_SKINS.find(a => a.id === targetPlayer.avatarId) || AVATAR_SKINS[0];
-
-            const ctn = document.getElementById('current-turn-name');
-            const gtn = document.getElementById('game-target-name');
-            const tva = document.getElementById('target-avatar');
-
-            if (ctn) ctn.innerText = isMyTurn ? "YOUR MOVE" : turnPlayer.name.toUpperCase();
-            if (gtn) gtn.innerText = targetPlayer.name.toUpperCase();
-            if (tva) { tva.innerText = targetAv.icon; }
-            
+            document.getElementById('current-turn-name').innerText = isMyTurn ? "YOUR MOVE" : turnPlayer.name.toUpperCase();
+            document.getElementById('game-target-name').innerText = targetPlayer.name.toUpperCase();
+            const targetAvEl = document.getElementById('target-avatar');
+            if (targetAvEl) targetAvEl.innerText = targetAv.icon;
             const gIn = document.getElementById('input-guess');
             const gBtn = document.getElementById('btn-submit-guess');
-            if (gIn) {
-                gIn.disabled = !isMyTurn;
-                gIn.maxLength = gameState.config.length;
-                gIn.placeholder = isMyTurn ? "Input Code" : "Enemy Calculating...";
-            }
+            if (gIn) { gIn.disabled = !isMyTurn; gIn.maxLength = gameState.config.length; gIn.placeholder = isMyTurn ? "Code Required" : "Waiting..."; }
             if (gBtn) gBtn.disabled = !isMyTurn;
-
-            // Render top horizontal player bar
             const gpEl = document.getElementById('game-players');
             if (gpEl) {
                 gpEl.innerHTML = gameState.players.filter(p => p).map((p, idx) => {
                     const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
                     const isActive = idx === gameState.currentTurnIndex;
                     const nextP = gameState.players[(idx+1)%gameState.players.length];
-                    return `
-                    <div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'}">
+                    return `<div class="px-4 py-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${isActive ? 'active-turn bg-white border-indigo-400' : 'bg-slate-100/50 border-transparent'}">
                         <span class="text-xl">${av.icon}</span>
                         <div class="leading-none">
                             <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name}</p>
@@ -779,14 +656,12 @@
                     </div>`;
                 }).join('');
             }
-
             const hLog = document.getElementById('history-log');
             if (hLog) {
                 hLog.innerHTML = gameState.history.map(h => {
                     const player = gameState.players.find(p => p && p.name === h.playerName);
                     const av = AVATAR_SKINS.find(a => a.id === (player ? player.avatarId : 'default')) || AVATAR_SKINS[0];
-                    return `
-                    <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
+                    return `<div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 animate-pop">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm">${av.icon}</span>
@@ -794,40 +669,31 @@
                             </div>
                             ${h.isTimeout ? '<span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black uppercase">Clock Ran Out</span>' : ''}
                         </div>
-                        <div class="flex gap-1.5 flex-wrap">
-                            ${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}
-                        </div>
+                        <div class="flex gap-1.5 flex-wrap">${h.results.map(r => `<div class="digit-box digit-${r.type}">${r.digit}</div>`).join('')}</div>
                     </div>`;
                 }).reverse().join('');
             }
-                
             startTimerLoop();
         }
 
         function startTimerLoop() {
             if (gameState.config.timerSeconds <= 0) return;
             if (timerInterval) clearInterval(timerInterval);
-            
             const tc = document.getElementById('timer-container');
             const tt = document.getElementById('timer-text');
             if (tc) tc.classList.remove('hidden');
             if (tt) tt.classList.remove('hidden');
-
             timerInterval = setInterval(() => {
                 const diff = (Date.now() - gameState.turnStartedAt) / 1000;
                 const rem = Math.max(0, gameState.config.timerSeconds - diff);
-                const timerBar = document.getElementById('timer-bar');
-                const timerText = document.getElementById('timer-text');
-                
-                if (timerBar) timerBar.style.width = `${(rem / gameState.config.timerSeconds) * 100}%`;
-                if (timerText) {
-                    const m = Math.floor(rem / 60);
-                    const s = Math.ceil(rem % 60);
-                    timerText.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-                    if (rem < 5) timerText.classList.add('animate-pulse');
-                    else timerText.classList.remove('animate-pulse');
+                const tb = document.getElementById('timer-bar');
+                const ttx = document.getElementById('timer-text');
+                if (tb) tb.style.width = `${(rem / gameState.config.timerSeconds) * 100}%`;
+                if (ttx) {
+                    const m = Math.floor(rem / 60); const s = Math.ceil(rem % 60);
+                    ttx.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                    if (rem < 5) ttx.classList.add('animate-pulse'); else ttx.classList.remove('animate-pulse');
                 }
-                
                 if (isHost && rem <= 0) processGuess("TIMEOUT", gameState.players[gameState.currentTurnIndex].id);
             }, 100);
         }
@@ -836,45 +702,27 @@
             if (!isHost) return;
             const pIdx = gameState.players.findIndex(p => p && p.id === playerId);
             if (pIdx === -1) return;
-            
             const target = gameState.players[(pIdx + 1) % gameState.players.length];
             const isTimeout = guess === "TIMEOUT";
-            
-            let flags = [];
             let results = [];
-
-            if (isTimeout) {
-                results = Array(gameState.config.length).fill(0).map(() => ({ digit: 'X', type: 'absent' }));
-            } else {
-                let tArr = target.secret.split('');
-                let gArr = guess.split('');
-                flags = Array(gArr.length).fill(null);
-                for (let i = 0; i < gArr.length; i++) {
-                    if (gArr[i] === tArr[i]) { flags[i] = 'correct'; tArr[i] = null; }
-                }
+            if (isTimeout) { results = Array(gameState.config.length).fill(0).map(() => ({ digit: 'X', type: 'absent' })); }
+            else {
+                let tArr = target.secret.split(''), gArr = guess.split(''), flags = Array(gArr.length).fill(null);
+                for (let i = 0; i < gArr.length; i++) { if (gArr[i] === tArr[i]) { flags[i] = 'correct'; tArr[i] = null; } }
                 for (let i = 0; i < gArr.length; i++) {
                     if (flags[i]) continue;
-                    let found = tArr.indexOf(gArr[i]);
-                    if (found !== -1) { flags[i] = 'present'; tArr[found] = null; }
-                    else flags[i] = 'absent';
+                    let f = tArr.indexOf(gArr[i]);
+                    if (f !== -1) { flags[i] = 'present'; tArr[f] = null; } else flags[i] = 'absent';
                 }
                 results = flags.map((f, i) => ({ digit: gArr[i], type: f }));
             }
-
             gameState.history.push({ playerName: gameState.players[pIdx].name, targetName: target.name, results, isTimeout });
-
             if (!isTimeout && results.every(r => r.type === 'correct')) {
                 gameState.status = 'finished';
                 gameState.winner = gameState.players[pIdx].name;
-                const winnerId = gameState.players[pIdx].id;
-                if (winnerId === myId) {
-                    playerProfile.credits += 100;
-                    saveProfile();
-                    notify("Champion! +100 RS Earned", 'success');
-                } else {
-                    const winnerConn = connections.find(c => c && c.peer === winnerId);
-                    if (winnerConn) winnerConn.send({ type: 'WIN_REWARD', amount: 100 });
-                }
+                const winId = gameState.players[pIdx].id;
+                if (winId === myId) { playerProfile.credits += 100; saveProfile(); notify("Champion! +100 RS Earned", 'success'); }
+                else { const winC = connections.find(c => c && c.peer === winId); if (winC) winC.send({ type: 'WIN_REWARD', amount: 100 }); }
             } else {
                 gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.players.length;
                 gameState.turnStartedAt = Date.now();
@@ -890,8 +738,7 @@
             if (rl) {
                 rl.innerHTML = gameState.players.filter(p => p).map(p => {
                     const av = AVATAR_SKINS.find(a => a.id === p.avatarId) || AVATAR_SKINS[0];
-                    return `
-                    <div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
+                    return `<div class="bg-white p-5 rounded-[2rem] border border-slate-100 min-w-[120px] shadow-sm flex flex-col items-center gap-3">
                         <span class="text-3xl">${av.icon}</span>
                         <div class="text-center">
                             <p class="text-[9px] font-black text-slate-400 uppercase truncate max-w-[90px] mb-1 tracking-widest">${p.name}</p>
@@ -904,19 +751,11 @@
 
         function requestSecrets() {
             if (!isHost || gameState.players.length < 2) return notify("Minimum 2 Duelists Required", 'error');
-            
-            const cl = document.getElementById('config-length');
-            const cm = document.getElementById('config-mode');
-            const ct = document.getElementById('config-timer');
-            const ca = document.getElementById('config-arena');
-            const cax = document.getElementById('config-max-players');
-
-            gameState.config.length = parseInt(cl.value);
-            gameState.config.mode = cm.value;
-            gameState.config.timerSeconds = parseInt(ct.value);
-            gameState.config.arenaSkinId = ca.value;
-            gameState.config.maxPlayers = parseInt(cax.value);
-            
+            gameState.config.length = parseInt(document.getElementById('config-length').value);
+            gameState.config.mode = document.getElementById('config-mode').value;
+            gameState.config.timerSeconds = parseInt(document.getElementById('config-timer').value);
+            gameState.config.arenaSkinId = document.getElementById('config-arena').value;
+            gameState.config.maxPlayers = parseInt(document.getElementById('config-max-players').value);
             gameState.status = 'setup';
             broadcastState();
         }
@@ -924,9 +763,7 @@
         async function submitSecret() {
             const inputSecret = document.getElementById('input-secret');
             const val = inputSecret ? inputSecret.value.trim().toUpperCase() : "";
-            if (val.length !== gameState.config.length) {
-                return notify(`Exactly ${gameState.config.length} characters required`, 'error');
-            }
+            if (val.length !== gameState.config.length) { return notify(`Exactly ${gameState.config.length} characters required`, 'error'); }
             if (gameState.config.mode === 'words') {
                 const btn = document.getElementById('btn-ready');
                 if (btn) { btn.innerText = "VALIDATING..."; btn.disabled = true; }
@@ -947,28 +784,21 @@
                 }
             } else {
                 conn.send({ type: 'SUBMIT_SECRET', secret: val, playerId: myId });
-                const br = document.getElementById('btn-ready');
-                const rs = document.getElementById('ready-status');
-                if (br) br.classList.add('hidden');
-                if (rs) rs.classList.remove('hidden');
+                document.getElementById('btn-ready').classList.add('hidden');
+                document.getElementById('ready-status').classList.remove('hidden');
             }
         }
 
         function submitGuess() {
             const inputGuess = document.getElementById('input-guess');
             const val = inputGuess ? inputGuess.value.trim().toUpperCase() : "";
-            if (val.length !== gameState.config.length) {
-                return notify(`Requirement: ${gameState.config.length} Characters`, 'error');
-            }
-            if (isHost) processGuess(val, myId);
-            else if (conn) conn.send({ type: 'SUBMIT_GUESS', guess: val, playerId: myId });
+            if (val.length !== gameState.config.length) { return notify(`Requirement: ${gameState.config.length} Characters`, 'error'); }
+            if (isHost) processGuess(val, myId); else if (conn) conn.send({ type: 'SUBMIT_GUESS', guess: val, playerId: myId });
             if (inputGuess) inputGuess.value = "";
         }
 
         function broadcastState() { 
-            if (isHost) {
-                connections.forEach(c => { if(c && c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); 
-            }
+            if (isHost) { connections.forEach(c => { if(c && c.open) c.send({ type: 'STATE_UPDATE', state: gameState }); }); }
             syncUI(); 
         }
 
@@ -982,15 +812,89 @@
         function showShop() { showScreen('shop'); renderShop('arenas'); }
         function hideShop() { showScreen('start'); }
         
-        function copyRoomId(e) { 
-            const did = document.getElementById('display-id');
-            const id = did ? did.innerText : "------";
+        function copyInviteLink(e) {
+            const id = document.getElementById('display-id').innerText;
             if (id === "------") return;
-            const el = document.createElement('textarea'); el.value = id; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-            const btn = e.currentTarget; const originalIcon = btn.innerHTML;
-            btn.innerHTML = '<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
-            setTimeout(() => { btn.innerHTML = originalIcon; }, 2000);
-            notify("Key Securely Copied!");
+            const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${id}`;
+            const el = document.createElement('textarea'); el.value = inviteUrl; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+            const btn = e.currentTarget; const original = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg><span class="text-[10px] font-black uppercase text-green-500 pr-1">Saved</span>';
+            setTimeout(() => { btn.innerHTML = original; }, 2000);
+            notify("Invite Link Copied!", "success");
+        }
+
+        function checkDeepLink() {
+            const id = new URLSearchParams(window.location.search).get('room');
+            if (id) {
+                const input = document.getElementById('join-id');
+                if (input) input.value = id;
+                notify("Room Code Applied!");
+            }
+        }
+
+        function hostGame() {
+            const nameEl = document.getElementById('host-name');
+            const name = nameEl ? nameEl.value.trim() : "";
+            if (!name) return notify("Commander Name Required", 'error');
+            isHost = true; myName = name;
+            gameState.players = [{ id: myId, name: myName, isHost: true, isReady: false, avatarId: playerProfile.activeAvatar }];
+            gameState.config.arenaSkinId = playerProfile.activeArena;
+            const arenaSel = document.getElementById('config-arena');
+            if (arenaSel) { arenaSel.innerHTML = ARENA_SKINS.filter(s => playerProfile.unlockedArenas.includes(s.id)).map(s => `<option value="${s.id}" ${s.id === playerProfile.activeArena ? 'selected' : ''}>${s.name}</option>`).join(''); }
+            showScreen('lobby');
+            const hc = document.getElementById('host-controls');
+            if (hc) hc.classList.remove('hidden');
+            renderLobby();
+        }
+
+        function joinGame() {
+            const nameEl = document.getElementById('join-name');
+            const idEl = document.getElementById('join-id');
+            const name = nameEl ? nameEl.value.trim() : "";
+            const targetId = idEl ? idEl.value.trim() : "";
+            if (!name || !targetId) return notify("Name & Room Code Required", 'error');
+            myName = name;
+            conn = peer.connect(targetId, { reliable: true });
+            conn.on('open', () => {
+                conn.send({ type: 'JOIN_REQUEST', name: myName, id: myId, avatarId: playerProfile.activeAvatar });
+                showScreen('lobby');
+                const gw = document.getElementById('guest-waiting');
+                if (gw) gw.classList.remove('hidden');
+            });
+            conn.on('data', (data) => handleIncomingData(data, conn));
+            conn.on('close', () => { notify("Disconnected from Host", "error"); setTimeout(() => location.reload(), 1500); });
+        }
+
+        function initPeer() {
+            peer = new Peer(undefined, PEER_CONFIG);
+            peer.on('open', (id) => {
+                myId = id;
+                const did = document.getElementById('display-id');
+                if (did) did.innerText = id;
+                updatePeerStatus('ready', 'Online');
+                saveProfile();
+                checkDeepLink();
+            });
+            peer.on('connection', (c) => {
+                if (!isHost) return;
+                c.on('open', () => {
+                    if (gameState.players.length >= gameState.config.maxPlayers || gameState.status !== 'lobby') {
+                        c.send({ type: 'ROOM_LOCKED' }); setTimeout(() => c.close(), 1000); return;
+                    }
+                    connections.push(c);
+                    c.on('data', (data) => handleIncomingData(data, c));
+                    c.on('close', () => {
+                        connections = connections.filter(conn => conn !== c);
+                        gameState.players = gameState.players.filter(p => p && p.id !== c.peer);
+                        broadcastState();
+                    });
+                });
+            });
+            peer.on('error', (err) => { 
+                console.error(err); 
+                if (err.type === 'peer-unavailable') notify("Target Room not found", "error");
+                updatePeerStatus('error', 'Error'); 
+            });
         }
 
         window.onload = initPeer;
