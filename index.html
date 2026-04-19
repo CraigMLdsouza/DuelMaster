@@ -38,7 +38,7 @@
         .active-turn { 
             border-color: var(--accent) !important; 
             transform: scale(1.03); 
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
         
         .btn-primary { 
@@ -99,7 +99,6 @@
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        /* Notification Styling */
         #notification-box {
             position: fixed;
             top: 1.5rem;
@@ -116,6 +115,15 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        .history-tab {
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+        .history-tab.active {
+            border-color: var(--accent);
+            color: var(--accent);
         }
     </style>
 </head>
@@ -174,17 +182,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                    <div id="host-card" class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-indigo-400 hover:shadow-xl transition-all group">
-                        <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                            <span class="text-2xl">🏠</span>
-                        </div>
-                        <h3 class="font-black text-xl mb-4 text-slate-800 uppercase tracking-tight">Host Arena</h3>
-                        <div class="space-y-4">
-                            <input type="text" id="host-name" placeholder="Fighter Name" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-400 border border-slate-100 font-bold text-slate-700">
-                            <button onclick="hostGame()" class="w-full btn-primary font-black py-4 rounded-2xl shadow-lg uppercase tracking-widest text-sm">Create Room</button>
-                        </div>
-                    </div>
-
+                    <!-- JOIN CARD NOW ON THE LEFT -->
                     <div id="join-card" class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-emerald-400 hover:shadow-xl transition-all group">
                         <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                             <span class="text-2xl">🎮</span>
@@ -194,6 +192,18 @@
                             <input type="text" id="join-name" placeholder="Fighter Name" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-400 border border-slate-100 font-bold text-slate-700 mb-1">
                             <input type="text" id="join-id" placeholder="Room ID" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-400 border border-slate-100 font-bold text-slate-700">
                             <button onclick="joinGame()" class="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl hover:bg-emerald-700 shadow-lg active:scale-95 uppercase tracking-widest text-sm">Join Match</button>
+                        </div>
+                    </div>
+
+                    <!-- HOST CARD NOW ON THE RIGHT -->
+                    <div id="host-card" class="p-6 sm:p-8 border-2 border-slate-100 rounded-[2rem] bg-white hover:border-indigo-400 hover:shadow-xl transition-all group">
+                        <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                            <span class="text-2xl">🏠</span>
+                        </div>
+                        <h3 class="font-black text-xl mb-4 text-slate-800 uppercase tracking-tight">Host Arena</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="host-name" placeholder="Fighter Name" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-400 border border-slate-100 font-bold text-slate-700">
+                            <button onclick="hostGame()" class="w-full btn-primary font-black py-4 rounded-2xl shadow-lg uppercase tracking-widest text-sm">Create Room</button>
                         </div>
                     </div>
                 </div>
@@ -218,8 +228,8 @@
                 </div>
                 
                 <div class="flex gap-2 p-1.5 bg-slate-100 rounded-[1.25rem]">
-                    <button onclick="renderShop('arenas')" id="tab-arenas" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest text-slate-400">Arenas</button>
-                    <button onclick="renderShop('avatars')" id="tab-avatars" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest text-slate-400">Avatars</button>
+                    <button onclick="renderShop('arenas')" id="tab-arenas" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest">Arenas</button>
+                    <button onclick="renderShop('avatars')" id="tab-avatars" class="flex-1 py-3 text-xs font-black rounded-[1rem] transition-all uppercase tracking-widest">Avatars</button>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5" id="shop-items"></div>
@@ -320,7 +330,7 @@
                 </div>
             </div>
 
-            <!-- Game Screen -->
+            <!-- Game Arena -->
             <div id="screen-game" class="hidden relative h-full flex flex-col screen-transition">
                 <div id="timer-container" class="hidden absolute top-0 left-0 w-full h-1.5 bg-slate-100 overflow-hidden">
                     <div id="timer-bar" class="timer-bar h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
@@ -354,10 +364,12 @@
                             <button id="btn-submit-guess" onclick="submitGuess()" class="px-8 btn-primary font-black rounded-2xl transition-all disabled:opacity-50 text-xs tracking-widest uppercase shadow-indigo-500/20 shadow-lg">Fire</button>
                         </div>
                     </div>
+
+                    <!-- NEW: Intel Tabs -->
                     <div class="flex-1 min-h-0 flex flex-col">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Arena Logs</h4>
+                        <div class="flex gap-4 border-b border-slate-200 mb-4 px-2">
+                            <button onclick="setHistoryTab('arena')" id="tab-arena-logs" class="history-tab active pb-2 text-[10px] font-black uppercase tracking-widest">Arena Logs</button>
+                            <button onclick="setHistoryTab('personal')" id="tab-personal-logs" class="history-tab pb-2 text-[10px] font-black uppercase tracking-widest">Personal Intel</button>
                         </div>
                         <div id="history-log" class="flex-1 overflow-y-auto space-y-4 pr-3 custom-scroll"></div>
                     </div>
@@ -403,6 +415,15 @@
             debug: 1
         };
 
+        let currentHistoryTab = 'arena'; // 'arena' or 'personal'
+
+        function setHistoryTab(tab) {
+            currentHistoryTab = tab;
+            document.getElementById('tab-arena-logs').classList.toggle('active', tab === 'arena');
+            document.getElementById('tab-personal-logs').classList.toggle('active', tab === 'personal');
+            renderGame(); // Refresh history with filter
+        }
+
         function notify(message, type = 'info') {
             const box = document.getElementById('notification-box');
             const text = document.getElementById('notification-text');
@@ -445,7 +466,7 @@
 
         const storedCredits = localStorage.getItem('duel_credits');
         const storedSession = localStorage.getItem('duel_session_id') || crypto.randomUUID();
-        const lastRoomId = localStorage.getItem('duel_last_room');
+        const lastRoomIdFromStorage = localStorage.getItem('duel_last_room');
         localStorage.setItem('duel_session_id', storedSession);
 
         let playerProfile = {
@@ -566,7 +587,7 @@
                             existingP.online = true;
                             existingP.name = data.name;
                             existingP.avatarId = data.avatarId;
-                            notify(`${data.name} reconnected!`, 'success');
+                            notify(`${data.name} returned!`, 'success');
                         } else if (gameState.players.length < gameState.config.maxPlayers) {
                             gameState.players.push({ id: data.id, sessionId: data.sessionId, name: data.name, isHost: false, isReady: false, avatarId: data.avatarId, online: true });
                         }
@@ -580,14 +601,14 @@
                     }
                     break;
                 case 'ROOM_LOCKED':
-                    notify("Arena Locked or Full!", 'error');
+                    notify("Arena is Locked/Full!", 'error');
                     localStorage.removeItem('duel_last_room');
                     setTimeout(() => location.reload(), 2500);
                     break;
                 case 'WIN_REWARD':
                     playerProfile.credits += data.amount;
                     saveProfile();
-                    notify(`Victory! +${data.amount} RS Earned`, 'success');
+                    notify(`Victory! Received ${data.amount} Credits`, 'success');
                     break;
                 case 'STATE_UPDATE':
                     gameState = data.state;
@@ -615,8 +636,9 @@
 
         function syncUI() {
             applyArenaTheme(gameState.config.arenaSkinId);
-            const screens = ['lobby', 'setup', 'game', 'finished'];
-            showScreen(gameState.status === 'playing' ? 'game' : (gameState.status === 'finished' ? 'result' : gameState.status));
+            const screenMap = { 'lobby': 'lobby', 'setup': 'setup', 'playing': 'game', 'finished': 'result' };
+            showScreen(screenMap[gameState.status]);
+
             if (gameState.status === 'lobby') renderLobby();
             else if (gameState.status === 'setup') renderSetup();
             else if (gameState.status === 'playing') renderGame();
@@ -688,7 +710,7 @@
             if (gIn) {
                 gIn.disabled = !isMyTurn;
                 gIn.maxLength = gameState.config.length;
-                gIn.placeholder = isMyTurn ? "Input Code" : (turnPlayer.online ? "Enemy Thinking..." : "Enemy Offline!");
+                gIn.placeholder = isMyTurn ? "Input Code" : (turnPlayer.online ? "Thinking..." : "Offline!");
             }
             if (gBtn) gBtn.disabled = !isMyTurn;
 
@@ -703,7 +725,7 @@
                         <span class="text-xl">${av.icon}</span>
                         <div class="leading-none">
                             <p class="font-black text-[10px] uppercase tracking-tight text-slate-800">${p.name} ${!p.online ? '⚠️' : ''}</p>
-                            <p class="text-[7px] text-slate-400 font-black uppercase tracking-widest mt-1">vs ${nextP ? nextP.name : '?'}</p>
+                            <p class="text-[7px] text-slate-400 font-black uppercase tracking-widest mt-1">vs ${nextP.name}</p>
                         </div>
                     </div>`;
                 }).join('');
@@ -711,7 +733,12 @@
 
             const hLog = document.getElementById('history-log');
             if (hLog) {
-                hLog.innerHTML = gameState.history.map(h => {
+                // Filter logic for Tabs
+                const filteredHistory = currentHistoryTab === 'personal' 
+                    ? gameState.history.filter(h => h.sessionId === playerProfile.sessionId)
+                    : gameState.history;
+
+                hLog.innerHTML = filteredHistory.map(h => {
                     const player = gameState.players.find(p => p && p.name === h.playerName);
                     const av = AVATAR_SKINS.find(a => a.id === (player ? player.avatarId : 'default')) || AVATAR_SKINS[0];
                     return `
@@ -776,7 +803,15 @@
                 }
                 results = flags.map((f, i) => ({ digit: gArr[i], type: f }));
             }
-            gameState.history.push({ playerName: gameState.players[pIdx].name, targetName: target.name, results, isTimeout });
+            // Add Session ID to history for filtering
+            gameState.history.push({ 
+                playerName: gameState.players[pIdx].name, 
+                sessionId: gameState.players[pIdx].sessionId,
+                targetName: target.name, 
+                results, 
+                isTimeout 
+            });
+            
             if (!isTimeout && results.every(r => r.type === 'correct')) {
                 gameState.status = 'finished';
                 gameState.winner = gameState.players[pIdx].name;
@@ -816,8 +851,20 @@
             }
         }
 
+        // --- NEW Round Logic with Shuffle ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
         function initiateRematch() {
             if (!isHost) return;
+            
+            // SHUFFLE PLAYERS to change who vs who
+            shuffleArray(gameState.players);
+            
             gameState.history = [];
             gameState.winner = null;
             gameState.currentTurnIndex = 0;
@@ -825,7 +872,7 @@
             gameState.players.forEach(p => { if (p) { p.isReady = false; p.secret = ""; } });
             if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
             broadcastState();
-            notify("New Round Initiated!", "success");
+            notify("New Round! Teams Realigned.", "success");
         }
 
         function requestSecrets() {
@@ -888,7 +935,6 @@
                 const el = document.getElementById(`screen-${s}`);
                 if (el) el.classList.toggle('hidden', s !== id);
             });
-            // Update the reconnect card visibility if on start screen
             if (id === 'start') {
                 const lastId = localStorage.getItem('duel_last_room');
                 const cont = document.getElementById('reconnect-container');
@@ -908,7 +954,7 @@
             if (id === "------") return;
             const link = `${window.location.origin}${window.location.pathname}?room=${id}`;
             const el = document.createElement('textarea'); el.value = link; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-            notify("Invite Link Copied!", "success");
+            notify("Link Copied!", "success");
         }
         function checkDeepLink() {
             const id = new URLSearchParams(window.location.search).get('room');
@@ -951,7 +997,7 @@
             });
             conn.on('data', (data) => handleIncomingData(data, conn));
             conn.on('close', () => { 
-                notify("Disconnected. Tap Rejoin to Return.", "error"); 
+                notify("Disconnected.", "error"); 
                 showScreen('start'); 
             });
         }
@@ -988,9 +1034,6 @@
             peer.on('error', (err) => { 
                 if (err.type === 'peer-unavailable') notify("Room not found", "error");
                 updatePeerStatus('error', 'Error'); 
-            });
-            peer.on('disconnected', () => {
-                peer.reconnect();
             });
         }
 
